@@ -4,18 +4,21 @@ import { memo, useState, useRef, useEffect, useCallback } from "react"
 import type { NodeProps } from "@xyflow/react"
 import ReactMarkdown from "react-markdown"
 import { NodeShell } from "./NodeShell"
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
 import type { ChatFlowNodeData } from "@/client/adapters/canvas/flow-node-mapper"
+import type { ModelRosterEntry } from "@/kernel/entities"
 
 type Tab = "chat" | "details"
 
 function ChatNodeInner({ data }: NodeProps) {
   const {
-    nodeId, messages, provider, model, systemPrompt, isStreaming,
-    onSendMessage, onResetChat, onDelete, onResizeEnd,
+    nodeId, messages, provider, model, roster, systemPrompt, isStreaming,
+    onSendMessage, onResetChat, onModelChange, onDelete, onResizeEnd,
   } = data as unknown as ChatFlowNodeData
 
   const [draft, setDraft] = useState("")
   const [tab, setTab] = useState<Tab>("chat")
+  const [pickerOpen, setPickerOpen] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -42,13 +45,79 @@ function ChatNodeInner({ data }: NodeProps) {
     onSendMessage(nodeId, text, systemPrompt ?? "")
   }
 
-  const modelShort = model.split("-").slice(0, 2).join(" ")
+  const handleSelectModel = (entry: ModelRosterEntry) => {
+    onModelChange(nodeId, entry.provider, entry.model)
+    setPickerOpen(false)
+  }
+
+  const currentDisplay = roster.find((e) => e.provider === provider && e.model === model)
+  const modelShort = currentDisplay?.displayName ?? model.split("-").slice(0, 2).join(" ")
+
+  // Group roster by provider
+  const grouped = roster.reduce<Record<string, ModelRosterEntry[]>>((acc, entry) => {
+    if (!acc[entry.provider]) acc[entry.provider] = []
+    acc[entry.provider].push(entry)
+    return acc
+  }, {})
 
   const header = (
     <div className="flex items-center gap-2 px-3 py-1.5">
       <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${isStreaming ? "bg-indicator animate-pulse" : systemPrompt ? "bg-primary" : "bg-muted-foreground"}`} />
       <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Chat</span>
-      <span className="text-[10px] text-muted-foreground">{modelShort}</span>
+      <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+        <PopoverTrigger asChild>
+          <button
+            disabled={isStreaming}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="text-[10px] text-muted-foreground hover:text-foreground disabled:opacity-50 flex items-center gap-0.5 nodrag"
+          >
+            {modelShort}
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="none" className="opacity-50">
+              <path d="M2 3L4 5L6 3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          className="w-48 p-1"
+          align="start"
+          onPointerDown={(e) => e.stopPropagation()}
+          onPointerDownOutside={() => setPickerOpen(false)}
+        >
+          {Object.entries(grouped).map(([providerName, entries]) => (
+            <div key={providerName}>
+              <div className="text-[9px] text-muted-foreground uppercase tracking-wider px-2 py-1 font-medium">
+                {providerName}
+              </div>
+              {entries.map((entry) => {
+                const isSelected = entry.provider === provider && entry.model === model
+                return (
+                  <button
+                    key={`${entry.provider}:${entry.model}`}
+                    onClick={() => handleSelectModel(entry)}
+                    className={`w-full text-left text-xs px-2 py-1 rounded flex items-center justify-between ${
+                      isSelected
+                        ? "text-foreground bg-muted"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    }`}
+                  >
+                    {entry.displayName}
+                    {isSelected && (
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <path d="M2.5 6L5 8.5L9.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          ))}
+          {roster.length === 0 && (
+            <div className="text-[10px] text-muted-foreground px-2 py-2 text-center">
+              No models configured
+            </div>
+          )}
+        </PopoverContent>
+      </Popover>
       <div className="ml-auto flex gap-1">
         <button
           onClick={() => setTab("chat")}

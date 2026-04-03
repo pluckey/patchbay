@@ -6,6 +6,7 @@ import type { BlobStoragePort } from "@/client/domain/ports/blob-storage-port"
 import type { PdfRendererPort } from "@/client/domain/ports/pdf-renderer-port"
 import type { TransformExecutorPort } from "@/client/domain/ports/transform-executor-port"
 import type { ChatPort } from "@/client/domain/ports/chat-port"
+import type { ModelRosterPort } from "@/client/domain/ports/model-roster-port"
 
 export type Adapters = {
   storage: StoragePort
@@ -13,6 +14,7 @@ export type Adapters = {
   pdfRenderer: PdfRendererPort
   transformExecutor: TransformExecutorPort
   chat: ChatPort
+  modelRoster: ModelRosterPort
 }
 
 const AdaptersContext = createContext<Adapters | null>(null)

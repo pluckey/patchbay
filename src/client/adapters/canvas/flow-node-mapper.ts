@@ -1,5 +1,5 @@
 import type { Node, Edge } from "@xyflow/react"
-import type { Position, WorkspaceNode, Connection, TransformResult, Message, InputLegendEntry } from "@/kernel/entities"
+import type { Position, WorkspaceNode, Connection, TransformResult, Message, InputLegendEntry, ModelRosterEntry } from "@/kernel/entities"
 
 export type MarkdownFlowNodeData = {
   nodeId: string
@@ -44,10 +44,12 @@ export type ChatFlowNodeData = {
   messages: Message[]
   provider: string
   model: string
+  roster: ModelRosterEntry[]
   systemPrompt?: string
   isStreaming?: boolean
   onSendMessage: (nodeId: string, content: string, systemPrompt: string) => void
   onResetChat: (nodeId: string) => void
+  onModelChange: (nodeId: string, provider: string, model: string) => void
   onDelete: (nodeId: string) => void
   onResizeEnd: (nodeId: string, dimensions: { width: number; height: number }) => void
 }
@@ -66,6 +68,7 @@ type FlowCallbacks = {
   onRerun: (nodeId: string) => void
   onSendMessage: (nodeId: string, content: string, systemPrompt: string) => void
   onResetChat: (nodeId: string) => void
+  onModelChange: (nodeId: string, provider: string, model: string) => void
 }
 
 export function toFlowNodes(
@@ -74,7 +77,8 @@ export function toFlowNodes(
   callbacks: FlowCallbacks,
   pipelineResults?: Map<string, TransformResult>,
   chatSystemPrompts?: Map<string, string>,
-  streamingNodeIds?: Set<string>
+  streamingNodeIds?: Set<string>,
+  roster?: ModelRosterEntry[]
 ): Node[] {
   return nodes.map((node) => {
     const base = {
@@ -158,10 +162,12 @@ export function toFlowNodes(
             messages: node.messages,
             provider: node.provider,
             model: node.model,
+            roster: roster ?? [],
             systemPrompt,
             isStreaming: streamingNodeIds?.has(node.id),
             onSendMessage: callbacks.onSendMessage,
             onResetChat: callbacks.onResetChat,
+            onModelChange: callbacks.onModelChange,
             onDelete: callbacks.onDelete,
             onResizeEnd: callbacks.onResizeEnd,
           } satisfies ChatFlowNodeData,

@@ -11,6 +11,7 @@ import { indexedDbBlobAdapter } from "@/client/adapters/storage/indexeddb-blob-a
 import { pdfRenderer } from "@/client/adapters/pdf/pdf-renderer"
 import { jsEvaluator } from "@/client/adapters/execution/js-evaluator"
 import { chatAdapter } from "@/client/adapters/chat/chat-adapter"
+import { modelRosterAdapter } from "@/client/adapters/model-roster/model-roster-adapter"
 import { migrateToServer } from "@/client/domain/use-cases/migrate-to-server"
 
 export default function Home() {
@@ -40,6 +41,7 @@ export default function Home() {
     pdfRenderer,
     transformExecutor: jsEvaluator,
     chat: chatAdapter,
+    modelRoster: modelRosterAdapter,
   }), [])
 
   if (!migrationComplete) return null

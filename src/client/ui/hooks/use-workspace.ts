@@ -17,11 +17,13 @@ import { updateTransformCode } from "@/kernel/transforms/update-transform-code"
 import { updateTransformTimeout } from "@/kernel/transforms/update-transform-timeout"
 import { updateConnectionLabel } from "@/kernel/transforms/update-connection-label"
 import { createChatNode } from "@/kernel/transforms/create-chat-node"
+import { updateChatModel } from "@/kernel/transforms/update-chat-model"
 import { removeNodeWithCleanup } from "@/client/domain/use-cases/remove-node-with-cleanup"
 import { sendChatMessage } from "@/client/domain/use-cases/send-chat-message"
 import { useAdapters } from "@/client/ui/app/adapters-context"
 import { useWorkspacePersistence } from "./use-workspace-persistence"
 import { usePdfOperations } from "./use-pdf-operations"
+import { useModelRoster } from "./use-model-roster"
 
 type UseWorkspaceArgs = {
   getViewport: () => Viewport
@@ -39,6 +41,7 @@ export function useWorkspace({ getViewport }: UseWorkspaceArgs) {
   } = useWorkspacePersistence({ storage, getViewport })
 
   const { handleUploadPdf } = usePdfOperations({ blobStorage, pdfRenderer, setNodes, scheduleSave })
+  const { roster } = useModelRoster()
 
   // --- Node CRUD ---
   const handleCreate = useCallback(
@@ -188,13 +191,16 @@ export function useWorkspace({ getViewport }: UseWorkspaceArgs) {
   const handleAddChatNode = useCallback(
     (position: { x: number; y: number }) => {
       setNodes((prev) => {
-        const node = createChatNode(position)
+        const defaultModel = roster[0]
+        const node = defaultModel
+          ? createChatNode(position, defaultModel.provider, defaultModel.model)
+          : createChatNode(position)
         const updated = [...prev, node]
         scheduleSave(updated)
         return updated
       })
     },
-    [setNodes, scheduleSave]
+    [setNodes, scheduleSave, roster]
   )
 
   const handleAddTransformNode = useCallback(
@@ -245,6 +251,17 @@ export function useWorkspace({ getViewport }: UseWorkspaceArgs) {
     [setNodes, nodesRef, scheduleSave, chat]
   )
 
+  const handleModelChange = useCallback(
+    (nodeId: string, provider: string, model: string) => {
+      setNodes((prev) => {
+        const updated = updateChatModel(prev, nodeId, provider, model)
+        scheduleSave(updated)
+        return updated
+      })
+    },
+    [setNodes, scheduleSave]
+  )
+
   const handleResetChat = useCallback(
     (nodeId: string) => {
       setNodes((prev) => {
@@ -293,7 +310,9 @@ export function useWorkspace({ getViewport }: UseWorkspaceArgs) {
     handleAddChatNode,
     handleSendMessage,
     handleResetChat,
+    handleModelChange,
     handleUpdateConnectionLabel,
     streamingNodeIds,
+    roster,
   }
 }

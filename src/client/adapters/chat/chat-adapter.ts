@@ -12,6 +12,7 @@ export const chatAdapter: ChatPort = {
         })),
         systemPrompt: request.systemPrompt,
         model: request.model,
+        provider: request.provider,
       }),
     })
 

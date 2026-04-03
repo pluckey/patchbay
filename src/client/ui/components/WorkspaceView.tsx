@@ -35,8 +35,10 @@ export function WorkspaceView() {
     handleAddChatNode,
     handleSendMessage,
     handleResetChat,
+    handleModelChange,
     handleUpdateConnectionLabel,
     streamingNodeIds,
+    roster,
   } = useWorkspace({ getViewport })
 
 
@@ -78,6 +80,8 @@ export function WorkspaceView() {
     onRerun: rerun,
     onSendMessage: handleSendMessage,
     onResetChat: handleResetChat,
+    onModelChange: handleModelChange,
+    roster,
     onCreateConnection: handleCreateConnection,
     onRemoveConnection: handleRemoveConnection,
     onUpdateConnectionLabel: handleUpdateConnectionLabel,

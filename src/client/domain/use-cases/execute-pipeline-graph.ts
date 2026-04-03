@@ -57,6 +57,11 @@ export async function executePipelineGraph(
       results
     )
 
+    // Store by transform node ID (for display in the transform node itself)
+    results.set(transformNode.id, result)
+    executed.add(transformNode.id)
+
+    // Store by all downstream target IDs (for consumers)
     const outgoingConns = connections.filter((c) => c.sourceId === transformNode.id)
     for (const conn of outgoingConns) {
       results.set(conn.targetId, result)

@@ -29,7 +29,6 @@ function TransformNodeInner({ data }: NodeProps) {
   } = data as unknown as TransformFlowNodeData
 
   const [isEditing, setIsEditing] = useState(false)
-  const [showOutput, setShowOutput] = useState(false)
 
   const isRunning = transformResult?.status === "running"
   const isSuccess = transformResult?.status === "success"
@@ -125,19 +124,19 @@ function TransformNodeInner({ data }: NodeProps) {
 
         {isSuccess && transformResult.output && (
           <div className="border-t border-border pt-1">
-            <button
-              className="text-[10px] text-muted-foreground hover:text-foreground"
-              onClick={() => setShowOutput(!showOutput)}
-            >
-              {showOutput ? "hide output" : "show output"}
-            </button>
-            {showOutput && (
-              <pre className="text-[10px] font-mono text-foreground mt-1 overflow-auto max-h-32 whitespace-pre-wrap">
-                {transformResult.output.length > 500
-                  ? transformResult.output.substring(0, 500) + "…"
-                  : transformResult.output}
-              </pre>
-            )}
+            <div className="text-[10px] text-muted-foreground mb-0.5">output</div>
+            <pre className="text-[10px] font-mono text-foreground overflow-auto max-h-40 whitespace-pre-wrap bg-muted rounded p-1.5">
+              {transformResult.output}
+            </pre>
+          </div>
+        )}
+
+        {isRunning && (
+          <div className="border-t border-border pt-1">
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-indicator animate-pulse" />
+              <span className="text-[10px] text-muted-foreground">running...</span>
+            </div>
           </div>
         )}
       </div>

@@ -162,31 +162,6 @@ export function useWorkspace({ getViewport }: UseWorkspaceArgs) {
     [setConnections, nodesRef, scheduleSave]
   )
 
-  const handleCreatePipeline = useCallback(
-    (sourceId: string, targetId: string) => {
-      const sourceNode = nodesRef.current.find((n) => n.id === sourceId)
-      const targetNode = nodesRef.current.find((n) => n.id === targetId)
-      if (!sourceNode || !targetNode) return
-
-      const midX = (sourceNode.position.x + targetNode.position.x) / 2
-      const midY = (sourceNode.position.y + targetNode.position.y) / 2
-      const transformNode = createTransformNode({ x: midX, y: midY })
-
-      const nodesWithTransform = [...nodesRef.current, transformNode]
-      const conn1 = createConnection(sourceId, transformNode.id, nodesWithTransform, connectionsRef.current)
-      const conn2 = createConnection(transformNode.id, targetId, nodesWithTransform, [...connectionsRef.current, conn1])
-
-      setNodes((prev) => {
-        const updated = [...prev, transformNode]
-        const updatedConns = [...connectionsRef.current, conn1, conn2]
-        setConnections(updatedConns)
-        scheduleSave(updated, updatedConns)
-        return updated
-      })
-    },
-    [setNodes, setConnections, connectionsRef, nodesRef, scheduleSave]
-  )
-
   const handleTransformCodeChange = useCallback(
     (nodeId: string, code: string) => {
       setNodes((prev) => {
@@ -310,7 +285,6 @@ export function useWorkspace({ getViewport }: UseWorkspaceArgs) {
     handleUploadPdf,
     handleCreateConnection,
     handleRemoveConnection,
-    handleCreatePipeline,
     handleTransformCodeChange,
     handleTimeoutChange,
     handleZoomChange,

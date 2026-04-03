@@ -28,7 +28,6 @@ type UseCanvasBindingArgs = {
   onRerun: (nodeId: string) => void
   onSendMessage: (nodeId: string, content: string, systemPrompt: string) => void
   onResetChat: (nodeId: string) => void
-  onCreatePipeline: (sourceId: string, targetId: string) => void
   onCreateConnection: (sourceId: string, targetId: string) => boolean
   onRemoveConnection: (connectionId: string) => void
   onUpdateConnectionLabel: (connectionId: string, label: string) => void
@@ -52,7 +51,6 @@ export function useCanvasBinding({
   onRerun,
   onSendMessage,
   onResetChat,
-  onCreatePipeline,
   onCreateConnection,
   onRemoveConnection,
   onUpdateConnectionLabel,
@@ -118,25 +116,14 @@ export function useCanvasBinding({
     [onMove]
   )
 
-  // Handle xyflow connection event — auto-create transform node between source and target
+  // Handle xyflow connection event — always create a plain edge
   const onConnect = useCallback(
     (params: FlowConnection) => {
-      if (!params.source || !params.target) return
-
-      const sourceNode = nodes.find((n) => n.id === params.source)
-      const targetNode = nodes.find((n) => n.id === params.target)
-      if (!sourceNode || !targetNode) return
-
-      // If connecting TO/FROM a transform or chat node, just create a plain edge
-      if (sourceNode.type === "transform" || targetNode.type === "transform" || targetNode.type === "chat") {
+      if (params.source && params.target) {
         onCreateConnection(params.source, params.target)
-        return
       }
-
-      // Content node → content node: auto-create transform in between
-      onCreatePipeline(params.source, params.target)
     },
-    [nodes, onCreateConnection, onCreatePipeline]
+    [onCreateConnection]
   )
 
   const reactFlow = useReactFlow()

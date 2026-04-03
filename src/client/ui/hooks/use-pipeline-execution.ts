@@ -45,20 +45,6 @@ export function usePipelineExecution({ nodes, connections, deps }: UsePipelineEx
       return
     }
 
-    // Set running state for all outgoing targets
-    setPipelineResults((prev) => {
-      const next = new Map(prev)
-      for (const node of nodes) {
-        if (node.type !== "transform") continue
-        if (!connections.some((c) => c.targetId === node.id)) continue
-        const outConns = connections.filter((c) => c.sourceId === node.id)
-        for (const conn of outConns) {
-          next.set(conn.targetId, { status: "running" })
-        }
-      }
-      return next
-    })
-
     const currentExecution = ++executionIdRef.current
     timerRef.current = setTimeout(async () => {
       timerRef.current = null
@@ -84,19 +70,19 @@ export function usePipelineExecution({ nodes, connections, deps }: UsePipelineEx
   const rerun = useCallback((transformNodeId: string) => {
     const outgoingConns = connections.filter((c) => c.sourceId === transformNodeId)
 
-    if (outgoingConns.length > 0) {
-      setPipelineResults((prev) => {
-        const next = new Map(prev)
-        for (const conn of outgoingConns) {
-          next.set(conn.targetId, { status: "running" })
-        }
-        return next
-      })
-    }
+    setPipelineResults((prev) => {
+      const next = new Map(prev)
+      next.set(transformNodeId, { status: "running" })
+      for (const conn of outgoingConns) {
+        next.set(conn.targetId, { status: "running" })
+      }
+      return next
+    })
 
     resolveAndExecute(transformNodeId, nodes, connections, deps, pipelineResults).then((result) => {
       setPipelineResults((prev) => {
         const next = new Map(prev)
+        next.set(transformNodeId, result)
         for (const conn of outgoingConns) {
           next.set(conn.targetId, result)
         }

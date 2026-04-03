@@ -4,9 +4,6 @@ import type { Position, WorkspaceNode, Connection, TransformResult, Message, Inp
 export type MarkdownFlowNodeData = {
   nodeId: string
   content: string
-  isDerived?: boolean
-  derivedContent?: string
-  derivedError?: string
   onContentChange: (nodeId: string, content: string) => void
   onDelete: (nodeId: string) => void
   onResizeEnd: (nodeId: string, dimensions: { width: number; height: number }) => void
@@ -91,21 +88,12 @@ export function toFlowNodes(
 
     switch (node.type) {
       case "markdown": {
-        const derived = pipelineResults?.get(node.id)
         const data: MarkdownFlowNodeData = {
           nodeId: node.id,
           content: node.content,
           onContentChange: callbacks.onContentChange,
           onDelete: callbacks.onDelete,
           onResizeEnd: callbacks.onResizeEnd,
-        }
-        if (derived) {
-          data.isDerived = true
-          if (derived.status === "success") {
-            data.derivedContent = derived.output
-          } else if (derived.status === "error") {
-            data.derivedError = derived.message
-          }
         }
         return { ...base, type: "markdownNode", data }
       }
@@ -139,10 +127,8 @@ export function toFlowNodes(
           return { label: c.label, sourceName, sourceType: src?.type ?? "unknown" }
         })
 
-        // Find downstream target to get pipeline result
-        const outgoingConn = connections.find((c) => c.sourceId === node.id)
-        const targetId = outgoingConn?.targetId
-        const transformResult = targetId ? pipelineResults?.get(targetId) : undefined
+        // Get this transform's own result
+        const transformResult = pipelineResults?.get(node.id)
 
         return {
           ...base,

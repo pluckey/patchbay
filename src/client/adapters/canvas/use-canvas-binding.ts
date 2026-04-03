@@ -19,7 +19,12 @@ type UseCanvasBindingArgs = {
   onMove: (nodeId: string, position: { x: number; y: number }) => void
   onResize: (nodeId: string, dimensions: { width: number; height: number }) => void
   onNavigatePage: (nodeId: string, page: number) => void
+  onZoomChange: (nodeId: string, zoomLevel: number) => void
+  onDarkModeToggle: (nodeId: string) => void
   onTransformCodeChange: (nodeId: string, code: string) => void
+  onTimeoutChange: (nodeId: string, timeoutMs: number) => void
+  onRerun: (nodeId: string) => void
+  onSendMessage: (nodeId: string, content: string, systemPrompt: string) => void
   onCreatePipeline: (sourceId: string, targetId: string) => void
   onCreateConnection: (sourceId: string, targetId: string) => boolean
   onRemoveConnection: (connectionId: string) => void
@@ -35,12 +40,36 @@ export function useCanvasBinding({
   onMove,
   onResize,
   onNavigatePage,
+  onZoomChange,
+  onDarkModeToggle,
   onTransformCodeChange,
+  onTimeoutChange,
+  onRerun,
+  onSendMessage,
   onCreatePipeline,
   onCreateConnection,
   onRemoveConnection,
 }: UseCanvasBindingArgs) {
   const [flowNodes, setFlowNodes] = useState<Node[]>([])
+
+  // Precompute system prompts for chat nodes
+  const chatSystemPrompts = useMemo(() => {
+    const prompts = new Map<string, string>()
+    for (const node of nodes) {
+      if (node.type !== "chat") continue
+      const incomingConn = connections.find((c) => c.targetId === node.id)
+      if (!incomingConn) continue
+      const sourceNode = nodes.find((n) => n.id === incomingConn.sourceId)
+      if (!sourceNode) continue
+      const sourceDerived = pipelineResults.get(sourceNode.id)
+      if (sourceDerived?.status === "success") {
+        prompts.set(node.id, sourceDerived.output)
+      } else if (sourceNode.type === "markdown") {
+        prompts.set(node.id, sourceNode.content)
+      }
+    }
+    return prompts
+  }, [nodes, connections, pipelineResults])
 
   // Sync domain state → flow nodes on CRUD changes
   useEffect(() => {
@@ -49,9 +78,14 @@ export function useCanvasBinding({
       onDelete,
       onResizeEnd: onResize,
       onNavigatePage,
+      onZoomChange,
+      onDarkModeToggle,
       onTransformCodeChange,
-    }, pipelineResults))
-  }, [nodes, connections, pipelineResults, onContentChange, onDelete, onResize, onNavigatePage, onTransformCodeChange])
+      onTimeoutChange,
+      onRerun,
+      onSendMessage,
+    }, pipelineResults, chatSystemPrompts))
+  }, [nodes, connections, pipelineResults, chatSystemPrompts, onContentChange, onDelete, onResize, onNavigatePage, onZoomChange, onDarkModeToggle, onTransformCodeChange, onTimeoutChange, onRerun, onSendMessage])
 
   // Sync domain connections → flow edges
   const flowEdges: Edge[] = useMemo(() =>
@@ -82,8 +116,8 @@ export function useCanvasBinding({
       const targetNode = nodes.find((n) => n.id === params.target)
       if (!sourceNode || !targetNode) return
 
-      // If connecting TO a transform node, or FROM a transform node, just create a plain edge
-      if (sourceNode.type === "transform" || targetNode.type === "transform") {
+      // If connecting TO/FROM a transform or chat node, just create a plain edge
+      if (sourceNode.type === "transform" || targetNode.type === "transform" || targetNode.type === "chat") {
         onCreateConnection(params.source, params.target)
         return
       }

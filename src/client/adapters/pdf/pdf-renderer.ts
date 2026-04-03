@@ -124,18 +124,13 @@ export const pdfRenderer: PdfRendererPort = {
     return textContent.items.map((item) => item.str).join(" ")
   },
 
-  async searchText(
+  async getPageDimensions(
     doc: PdfDocument,
-    pageNum: number,
-    query: string
-  ): Promise<number> {
-    if (!query.trim()) return 0
+    pageNum: number
+  ): Promise<{ width: number; height: number }> {
     const proxy = getProxy(doc)
     const page = await proxy.getPage(pageNum)
-    const textContent = await page.getTextContent()
-    const fullText = textContent.items.map((item) => item.str).join(" ")
-    const regex = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi")
-    const matches = fullText.match(regex)
-    return matches?.length ?? 0
+    const viewport = page.getViewport({ scale: 1 })
+    return { width: viewport.width, height: viewport.height }
   },
 }

@@ -1,5 +1,5 @@
 import type { Node, Edge } from "@xyflow/react"
-import type { Position, WorkspaceNode, Connection, TransformResult } from "@/kernel/entities"
+import type { Position, WorkspaceNode, Connection, TransformResult, Message } from "@/kernel/entities"
 
 export type MarkdownFlowNodeData = {
   nodeId: string
@@ -18,7 +18,11 @@ export type PdfFlowNodeData = {
   filename: string
   currentPage: number
   totalPages: number
+  zoomLevel: number
+  darkMode: boolean
   onNavigatePage: (nodeId: string, page: number) => void
+  onZoomChange: (nodeId: string, zoomLevel: number) => void
+  onDarkModeToggle: (nodeId: string) => void
   onDelete: (nodeId: string) => void
   onResizeEnd: (nodeId: string, dimensions: { width: number; height: number }) => void
 }
@@ -26,28 +30,49 @@ export type PdfFlowNodeData = {
 export type TransformFlowNodeData = {
   nodeId: string
   transformCode: string
+  timeoutMs: number
   transformResult?: TransformResult
   sourceNodeType?: "markdown" | "pdf"
   onTransformCodeChange: (nodeId: string, code: string) => void
+  onTimeoutChange: (nodeId: string, timeoutMs: number) => void
+  onRerun: (nodeId: string) => void
   onDelete: (nodeId: string) => void
   onResizeEnd: (nodeId: string, dimensions: { width: number; height: number }) => void
 }
 
-export type FlowNodeData = MarkdownFlowNodeData | PdfFlowNodeData | TransformFlowNodeData
+export type ChatFlowNodeData = {
+  nodeId: string
+  messages: Message[]
+  provider: string
+  model: string
+  systemPrompt?: string
+  isStreaming?: boolean
+  onSendMessage: (nodeId: string, content: string, systemPrompt: string) => void
+  onDelete: (nodeId: string) => void
+  onResizeEnd: (nodeId: string, dimensions: { width: number; height: number }) => void
+}
+
+export type FlowNodeData = MarkdownFlowNodeData | PdfFlowNodeData | TransformFlowNodeData | ChatFlowNodeData
 
 type FlowCallbacks = {
   onContentChange: (nodeId: string, content: string) => void
   onDelete: (nodeId: string) => void
   onResizeEnd: (nodeId: string, dimensions: { width: number; height: number }) => void
   onNavigatePage: (nodeId: string, page: number) => void
+  onZoomChange: (nodeId: string, zoomLevel: number) => void
+  onDarkModeToggle: (nodeId: string) => void
   onTransformCodeChange: (nodeId: string, code: string) => void
+  onTimeoutChange: (nodeId: string, timeoutMs: number) => void
+  onRerun: (nodeId: string) => void
+  onSendMessage: (nodeId: string, content: string, systemPrompt: string) => void
 }
 
 export function toFlowNodes(
   nodes: WorkspaceNode[],
   connections: Connection[],
   callbacks: FlowCallbacks,
-  pipelineResults?: Map<string, TransformResult>
+  pipelineResults?: Map<string, TransformResult>,
+  chatSystemPrompts?: Map<string, string>
 ): Node[] {
   return nodes.map((node) => {
     const base = {
@@ -73,7 +98,7 @@ export function toFlowNodes(
           data.isDerived = true
           if (derived.status === "success") {
             data.derivedContent = derived.output
-          } else {
+          } else if (derived.status === "error") {
             data.derivedError = derived.message
           }
         }
@@ -89,7 +114,11 @@ export function toFlowNodes(
             filename: node.filename,
             currentPage: node.currentPage,
             totalPages: node.totalPages,
+            zoomLevel: node.zoomLevel,
+            darkMode: node.darkMode,
             onNavigatePage: callbacks.onNavigatePage,
+            onZoomChange: callbacks.onZoomChange,
+            onDarkModeToggle: callbacks.onDarkModeToggle,
             onDelete: callbacks.onDelete,
             onResizeEnd: callbacks.onResizeEnd,
           } satisfies PdfFlowNodeData,
@@ -111,12 +140,33 @@ export function toFlowNodes(
           data: {
             nodeId: node.id,
             transformCode: node.transformCode,
+            timeoutMs: node.timeoutMs,
             transformResult,
             sourceNodeType,
             onTransformCodeChange: callbacks.onTransformCodeChange,
+            onTimeoutChange: callbacks.onTimeoutChange,
+            onRerun: callbacks.onRerun,
             onDelete: callbacks.onDelete,
             onResizeEnd: callbacks.onResizeEnd,
           } satisfies TransformFlowNodeData,
+        }
+      }
+      case "chat": {
+        const systemPrompt = chatSystemPrompts?.get(node.id)
+
+        return {
+          ...base,
+          type: "chatNode",
+          data: {
+            nodeId: node.id,
+            messages: node.messages,
+            provider: node.provider,
+            model: node.model,
+            systemPrompt,
+            onSendMessage: callbacks.onSendMessage,
+            onDelete: callbacks.onDelete,
+            onResizeEnd: callbacks.onResizeEnd,
+          } satisfies ChatFlowNodeData,
         }
       }
     }

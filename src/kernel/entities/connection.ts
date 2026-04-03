@@ -6,5 +6,6 @@ export type Connection = {
 }
 
 export type TransformResult =
-  | { status: "success"; output: string }
-  | { status: "error"; message: string }
+  | { status: "success"; output: string; durationMs: number }
+  | { status: "error"; message: string; durationMs: number; timedOut?: boolean }
+  | { status: "running" }

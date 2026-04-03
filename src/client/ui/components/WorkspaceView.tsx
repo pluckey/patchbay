@@ -29,6 +29,11 @@ export function WorkspaceView() {
     handleRemoveConnection,
     handleCreatePipeline,
     handleTransformCodeChange,
+    handleTimeoutChange,
+    handleZoomChange,
+    handleDarkModeToggle,
+    handleAddChatNode,
+    handleSendMessage,
   } = useWorkspace({ getViewport })
 
   const { blobStorage, pdfRenderer, transformExecutor } = useAdapters()
@@ -38,7 +43,7 @@ export function WorkspaceView() {
     pdfRenderer,
   }), [transformExecutor, blobStorage, pdfRenderer])
 
-  const { pipelineResults } = usePipelineExecution({
+  const { pipelineResults, rerun } = usePipelineExecution({
     nodes,
     connections,
     deps: pipelineDeps,
@@ -60,7 +65,12 @@ export function WorkspaceView() {
     onMove: handleMove,
     onResize: handleResize,
     onNavigatePage: handleNavigatePage,
+    onZoomChange: handleZoomChange,
+    onDarkModeToggle: handleDarkModeToggle,
     onTransformCodeChange: handleTransformCodeChange,
+    onTimeoutChange: handleTimeoutChange,
+    onRerun: rerun,
+    onSendMessage: handleSendMessage,
     onCreatePipeline: handleCreatePipeline,
     onCreateConnection: handleCreateConnection,
     onRemoveConnection: handleRemoveConnection,
@@ -85,6 +95,7 @@ export function WorkspaceView() {
     <>
       <Toolbar
         onAddNode={() => createAtCenter(handleCreate)}
+        onAddChat={() => createAtCenter(handleAddChatNode)}
         onUploadPdf={(file) => createAtCenter((pos) => onUploadPdf(file, pos))}
       />
       <Canvas

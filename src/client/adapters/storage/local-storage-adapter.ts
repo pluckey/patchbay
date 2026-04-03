@@ -2,7 +2,7 @@ import type { Workspace, WorkspaceNode, Connection } from "@/kernel/entities"
 import type { StoragePort } from "@/client/domain/ports/storage-port"
 
 const STORAGE_KEY = "context-canvas:workspace"
-const CURRENT_VERSION = 4
+const CURRENT_VERSION = 5
 
 type StorageEnvelope = {
   version: number
@@ -38,6 +38,28 @@ function migrate(envelope: StorageEnvelope): StorageEnvelope {
       createdAt: c.createdAt,
     }))
     envelope.version = 4
+  }
+  // v4 → v5: add zoomLevel/darkMode to PDF nodes, timeoutMs to transform nodes
+  if (envelope.version < 5) {
+    envelope.nodes = envelope.nodes.map((node) => {
+      if (node.type === "pdf") {
+        const raw = node as Record<string, unknown>
+        return {
+          ...node,
+          zoomLevel: (typeof raw.zoomLevel === "number" ? raw.zoomLevel : 1.0) as number,
+          darkMode: (typeof raw.darkMode === "boolean" ? raw.darkMode : false) as boolean,
+        }
+      }
+      if (node.type === "transform") {
+        const raw = node as Record<string, unknown>
+        return {
+          ...node,
+          timeoutMs: (typeof raw.timeoutMs === "number" ? raw.timeoutMs : 5000) as number,
+        }
+      }
+      return node
+    })
+    envelope.version = 5
   }
   return envelope
 }

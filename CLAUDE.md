@@ -94,6 +94,7 @@ This project follows the [Geist design system](https://vercel.com/geist/introduc
 | Gray 10 | Primary text/icons | `text-foreground`, `text-card-foreground` |
 | Destructive | Danger/delete actions | `bg-destructive`, `text-destructive-foreground` |
 | Primary | Primary actions | `bg-primary`, `text-primary-foreground` |
+| Indicator | Progress, activity, attention signals | `bg-indicator`, `text-indicator-foreground` |
 
 ### Canvas node rule
 

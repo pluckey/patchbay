@@ -8,6 +8,7 @@ import { localStorageAdapter } from "@/client/adapters/storage/local-storage-ada
 import { indexedDbBlobAdapter } from "@/client/adapters/storage/indexeddb-blob-adapter"
 import { pdfRenderer } from "@/client/adapters/pdf/pdf-renderer"
 import { jsEvaluator } from "@/client/adapters/execution/js-evaluator"
+import { chatAdapter } from "@/client/adapters/chat/chat-adapter"
 
 export default function Home() {
   const adapters = useMemo(() => ({
@@ -15,6 +16,7 @@ export default function Home() {
     blobStorage: indexedDbBlobAdapter,
     pdfRenderer,
     transformExecutor: jsEvaluator,
+    chat: chatAdapter,
   }), [])
 
   return (

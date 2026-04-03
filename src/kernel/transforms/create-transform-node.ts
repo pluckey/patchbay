@@ -10,6 +10,7 @@ export function createTransformNode(
     id: nanoid(),
     type: "transform",
     transformCode,
+    timeoutMs: 5000,
     position,
     dimensions: { width: 280, height: 200 },
     createdAt: now,

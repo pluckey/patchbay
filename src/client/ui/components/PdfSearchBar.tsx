@@ -5,7 +5,11 @@ import { Button } from "@/client/ui/components/ui/button"
 type PdfSearchBarProps = {
   searchQuery: string
   onSearchChange: (query: string) => void
-  matchCount: number
+  totalMatches: number
+  currentMatchIndex: number
+  isSearching: boolean
+  onNextMatch: () => void
+  onPrevMatch: () => void
   showTocToggle: boolean
   isTocOpen: boolean
   onToggleToc: () => void
@@ -14,7 +18,11 @@ type PdfSearchBarProps = {
 export function PdfSearchBar({
   searchQuery,
   onSearchChange,
-  matchCount,
+  totalMatches,
+  currentMatchIndex,
+  isSearching,
+  onNextMatch,
+  onPrevMatch,
   showTocToggle,
   isTocOpen,
   onToggleToc,
@@ -36,9 +44,25 @@ export function PdfSearchBar({
         className="flex-1 text-xs bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground"
       />
       {searchQuery && (
-        <span className="text-xs text-muted-foreground">
-          {matchCount} match{matchCount !== 1 ? "es" : ""}
-        </span>
+        <>
+          <span className="text-xs text-muted-foreground whitespace-nowrap">
+            {isSearching
+              ? `${totalMatches}...`
+              : totalMatches > 0
+                ? `${currentMatchIndex} of ${totalMatches}`
+                : "0 matches"}
+          </span>
+          {totalMatches > 0 && (
+            <>
+              <Button variant="ghost" size="icon-xs" onClick={onPrevMatch} title="Previous match">
+                ↑
+              </Button>
+              <Button variant="ghost" size="icon-xs" onClick={onNextMatch} title="Next match">
+                ↓
+              </Button>
+            </>
+          )}
+        </>
       )}
     </div>
   )

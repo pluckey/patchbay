@@ -19,6 +19,7 @@ import "@xyflow/react/dist/style.css"
 import { MarkdownNode } from "./MarkdownNode"
 import { PdfNode } from "./PdfNode"
 import { TransformNode } from "./TransformNode"
+import { ChatNode } from "./ChatNode"
 
 type CanvasProps = {
   nodes: Node[]
@@ -32,7 +33,7 @@ type CanvasProps = {
 
 export function Canvas({ nodes, edges, onNodesChange, onNodeDragStop, onConnect, initialViewport, onDropPdf }: CanvasProps) {
   const nodeTypes: NodeTypes = useMemo(
-    () => ({ markdownNode: MarkdownNode, pdfNode: PdfNode, transformNode: TransformNode }),
+    () => ({ markdownNode: MarkdownNode, pdfNode: PdfNode, transformNode: TransformNode, chatNode: ChatNode }),
     []
   )
   const defaultEdgeOptions = useMemo(

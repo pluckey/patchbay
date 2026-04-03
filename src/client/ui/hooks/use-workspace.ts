@@ -7,12 +7,17 @@ import { updateNodeContent } from "@/kernel/transforms/update-node-content"
 import { moveNode } from "@/kernel/transforms/move-node"
 import { resizeNode } from "@/kernel/transforms/resize-node"
 import { navigatePdfPage } from "@/kernel/transforms/navigate-pdf-page"
+import { updatePdfZoom } from "@/kernel/transforms/update-pdf-zoom"
+import { togglePdfDarkMode } from "@/kernel/transforms/toggle-pdf-dark-mode"
 import { createConnection } from "@/kernel/transforms/create-connection"
 import { removeConnection } from "@/kernel/transforms/remove-connection"
 import { validateConnection } from "@/kernel/transforms/validate-connection"
 import { createTransformNode } from "@/kernel/transforms/create-transform-node"
 import { updateTransformCode } from "@/kernel/transforms/update-transform-code"
+import { updateTransformTimeout } from "@/kernel/transforms/update-transform-timeout"
+import { createChatNode } from "@/kernel/transforms/create-chat-node"
 import { removeNodeWithCleanup } from "@/client/domain/use-cases/remove-node-with-cleanup"
+import { sendChatMessage } from "@/client/domain/use-cases/send-chat-message"
 import { useAdapters } from "@/client/ui/app/adapters-context"
 import { useWorkspacePersistence } from "./use-workspace-persistence"
 import { usePdfOperations } from "./use-pdf-operations"
@@ -106,6 +111,28 @@ export function useWorkspace({ getViewport }: UseWorkspaceArgs) {
     [setNodes, scheduleSave]
   )
 
+  const handleZoomChange = useCallback(
+    (nodeId: string, zoomLevel: number) => {
+      setNodes((prev) => {
+        const updated = updatePdfZoom(prev, nodeId, zoomLevel)
+        scheduleSave(updated)
+        return updated
+      })
+    },
+    [setNodes, scheduleSave]
+  )
+
+  const handleDarkModeToggle = useCallback(
+    (nodeId: string) => {
+      setNodes((prev) => {
+        const updated = togglePdfDarkMode(prev, nodeId)
+        scheduleSave(updated)
+        return updated
+      })
+    },
+    [setNodes, scheduleSave]
+  )
+
   // --- Connection CRUD ---
   const handleCreateConnection = useCallback(
     (sourceId: string, targetId: string): boolean => {
@@ -169,6 +196,58 @@ export function useWorkspace({ getViewport }: UseWorkspaceArgs) {
     [setNodes, scheduleSave]
   )
 
+  const handleTimeoutChange = useCallback(
+    (nodeId: string, timeoutMs: number) => {
+      setNodes((prev) => {
+        const updated = updateTransformTimeout(prev, nodeId, timeoutMs)
+        scheduleSave(updated)
+        return updated
+      })
+    },
+    [setNodes, scheduleSave]
+  )
+
+  // --- Chat ---
+  const handleAddChatNode = useCallback(
+    (position: { x: number; y: number }) => {
+      setNodes((prev) => {
+        const node = createChatNode(position)
+        const updated = [...prev, node]
+        scheduleSave(updated)
+        return updated
+      })
+    },
+    [setNodes, scheduleSave]
+  )
+
+  const { chat } = useAdapters()
+
+  const handleSendMessage = useCallback(
+    async (nodeId: string, content: string, systemPrompt: string) => {
+      const updates = sendChatMessage({
+        nodeId,
+        content,
+        systemPrompt,
+        nodes: nodesRef.current,
+        chat,
+      })
+
+      for await (const update of updates) {
+        setNodes((prev) =>
+          prev.map((n) =>
+            n.id === update.nodeId && n.type === "chat"
+              ? { ...n, messages: update.messages, updatedAt: Date.now() }
+              : n
+          )
+        )
+        if (update.type === "complete" || update.type === "error") {
+          scheduleSave(nodesRef.current)
+        }
+      }
+    },
+    [setNodes, nodesRef, scheduleSave, chat]
+  )
+
   return {
     nodes,
     connections,
@@ -185,5 +264,10 @@ export function useWorkspace({ getViewport }: UseWorkspaceArgs) {
     handleRemoveConnection,
     handleCreatePipeline,
     handleTransformCodeChange,
+    handleTimeoutChange,
+    handleZoomChange,
+    handleDarkModeToggle,
+    handleAddChatNode,
+    handleSendMessage,
   }
 }

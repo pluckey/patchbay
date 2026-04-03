@@ -19,7 +19,7 @@ export async function executePipeline(
       text: sourceNode.content,
       type: "markdown" as const,
     }
-    return deps.transformExecutor.execute(transformNode.transformCode, input)
+    return deps.transformExecutor.execute(transformNode.transformCode, input, transformNode.timeoutMs)
   }
 
   if (sourceNode.type === "pdf") {
@@ -27,10 +27,10 @@ export async function executePipeline(
     try {
       blob = await deps.blobStorage.retrieve(sourceNode.blobId)
     } catch {
-      return { status: "error", message: "Failed to retrieve PDF blob." }
+      return { status: "error", message: "Failed to retrieve PDF blob.", durationMs: 0 }
     }
     if (!blob) {
-      return { status: "error", message: "PDF blob not found." }
+      return { status: "error", message: "PDF blob not found.", durationMs: 0 }
     }
 
     const doc = await deps.pdfRenderer.loadDocument(blob)
@@ -49,13 +49,13 @@ export async function executePipeline(
         totalPages: sourceNode.totalPages,
         filename: sourceNode.filename,
       }
-      return await deps.transformExecutor.execute(transformNode.transformCode, input)
+      return await deps.transformExecutor.execute(transformNode.transformCode, input, transformNode.timeoutMs)
     } finally {
       await doc.destroy()
     }
   }
 
-  return { status: "error", message: "Cannot use a transform node as a source." }
+  return { status: "error", message: "Cannot use a transform node as a source.", durationMs: 0 }
 }
 
 /**
@@ -70,17 +70,17 @@ export async function resolveAndExecute(
 ): Promise<TransformResult> {
   const transformNode = nodes.find((n) => n.id === transformNodeId)
   if (!transformNode || transformNode.type !== "transform") {
-    return { status: "error", message: "Transform node not found." }
+    return { status: "error", message: "Transform node not found.", durationMs: 0 }
   }
 
   const incomingConn = connections.find((c) => c.targetId === transformNodeId)
   if (!incomingConn) {
-    return { status: "error", message: "No source connected." }
+    return { status: "error", message: "No source connected.", durationMs: 0 }
   }
 
   const sourceNode = nodes.find((n) => n.id === incomingConn.sourceId)
   if (!sourceNode) {
-    return { status: "error", message: "Source node not found." }
+    return { status: "error", message: "Source node not found.", durationMs: 0 }
   }
 
   return executePipeline(transformNode, sourceNode, deps)

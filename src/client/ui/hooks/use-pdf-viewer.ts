@@ -59,15 +59,15 @@ export function usePdfViewer({ blobId, blobStorage, renderer }: UsePdfViewerArgs
     }
   }, [blobId, blobStorage, renderer])
 
-  const getCacheKey = (pageNum: number, width: number) => `${pageNum}:${width}`
+  const getCacheKey = (pageNum: number, width: number, zoom: number) => `${pageNum}:${width}:${zoom}`
 
   // Render a page — serves from cache if available, evicts LRU if full
   const renderPage = useCallback(
-    async (pageNum: number, containerWidth: number): Promise<HTMLCanvasElement | null> => {
+    async (pageNum: number, containerWidth: number, zoomLevel: number = 1.0): Promise<HTMLCanvasElement | null> => {
       if (state.status !== "ready") return null
 
       const cache = pageCacheRef.current
-      const key = getCacheKey(pageNum, containerWidth)
+      const key = getCacheKey(pageNum, containerWidth, zoomLevel)
 
       // Cache hit — move to end (most recently used)
       if (cache.has(key)) {
@@ -79,7 +79,7 @@ export function usePdfViewer({ blobId, blobStorage, renderer }: UsePdfViewerArgs
 
       // Cache miss — render
       try {
-        const scale = Math.max(containerWidth / 612, 0.5)
+        const scale = Math.max((containerWidth / 612) * zoomLevel, 0.5)
         const canvas = await renderer.renderPage(state.doc, pageNum, scale)
 
         // Evict LRU if cache is full
@@ -99,7 +99,7 @@ export function usePdfViewer({ blobId, blobStorage, renderer }: UsePdfViewerArgs
 
   // Pre-render adjacent pages in the background
   const preRenderAdjacent = useCallback(
-    (currentPage: number, totalPages: number, containerWidth: number) => {
+    (currentPage: number, totalPages: number, containerWidth: number, zoomLevel: number = 1.0) => {
       if (state.status !== "ready") return
 
       const pagesToPreRender = [currentPage - 1, currentPage + 1].filter(
@@ -107,10 +107,9 @@ export function usePdfViewer({ blobId, blobStorage, renderer }: UsePdfViewerArgs
       )
 
       for (const page of pagesToPreRender) {
-        const key = getCacheKey(page, containerWidth)
+        const key = getCacheKey(page, containerWidth, zoomLevel)
         if (!pageCacheRef.current.has(key)) {
-          // Fire and forget — don't block the current render
-          renderPage(page, containerWidth).catch(() => {})
+          renderPage(page, containerWidth, zoomLevel).catch(() => {})
         }
       }
     },

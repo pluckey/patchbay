@@ -270,6 +270,21 @@ export function useWorkspace({ getViewport }: UseWorkspaceArgs) {
     [setNodes, nodesRef, scheduleSave, chat]
   )
 
+  const handleResetChat = useCallback(
+    (nodeId: string) => {
+      setNodes((prev) => {
+        const updated = prev.map((n) =>
+          n.id === nodeId && n.type === "chat"
+            ? { ...n, messages: [], updatedAt: Date.now() }
+            : n
+        )
+        scheduleSave(updated)
+        return updated
+      })
+    },
+    [setNodes, scheduleSave]
+  )
+
   const handleUpdateConnectionLabel = useCallback(
     (connectionId: string, label: string) => {
       setConnections((prev) => {
@@ -303,6 +318,7 @@ export function useWorkspace({ getViewport }: UseWorkspaceArgs) {
     handleAddTransformNode,
     handleAddChatNode,
     handleSendMessage,
+    handleResetChat,
     handleUpdateConnectionLabel,
     streamingNodeIds,
   }

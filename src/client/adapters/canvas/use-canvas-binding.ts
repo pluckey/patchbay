@@ -27,6 +27,7 @@ type UseCanvasBindingArgs = {
   onTimeoutChange: (nodeId: string, timeoutMs: number) => void
   onRerun: (nodeId: string) => void
   onSendMessage: (nodeId: string, content: string, systemPrompt: string) => void
+  onResetChat: (nodeId: string) => void
   onCreatePipeline: (sourceId: string, targetId: string) => void
   onCreateConnection: (sourceId: string, targetId: string) => boolean
   onRemoveConnection: (connectionId: string) => void
@@ -50,6 +51,7 @@ export function useCanvasBinding({
   onTimeoutChange,
   onRerun,
   onSendMessage,
+  onResetChat,
   onCreatePipeline,
   onCreateConnection,
   onRemoveConnection,
@@ -76,8 +78,9 @@ export function useCanvasBinding({
       onTimeoutChange,
       onRerun,
       onSendMessage,
+      onResetChat,
     }, pipelineResults, chatSystemPrompts, streamingNodeIds))
-  }, [nodes, connections, pipelineResults, chatSystemPrompts, streamingNodeIds, onContentChange, onDelete, onResize, onNavigatePage, onZoomChange, onDarkModeToggle, onTransformCodeChange, onTimeoutChange, onRerun, onSendMessage])
+  }, [nodes, connections, pipelineResults, chatSystemPrompts, streamingNodeIds, onContentChange, onDelete, onResize, onNavigatePage, onZoomChange, onDarkModeToggle, onTransformCodeChange, onTimeoutChange, onRerun, onSendMessage, onResetChat])
 
   // Sync domain connections → flow edges
   const [flowEdges, setFlowEdges] = useState<Edge[]>([])

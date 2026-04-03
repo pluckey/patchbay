@@ -50,6 +50,7 @@ export type ChatFlowNodeData = {
   systemPrompt?: string
   isStreaming?: boolean
   onSendMessage: (nodeId: string, content: string, systemPrompt: string) => void
+  onResetChat: (nodeId: string) => void
   onDelete: (nodeId: string) => void
   onResizeEnd: (nodeId: string, dimensions: { width: number; height: number }) => void
 }
@@ -67,6 +68,7 @@ type FlowCallbacks = {
   onTimeoutChange: (nodeId: string, timeoutMs: number) => void
   onRerun: (nodeId: string) => void
   onSendMessage: (nodeId: string, content: string, systemPrompt: string) => void
+  onResetChat: (nodeId: string) => void
 }
 
 export function toFlowNodes(
@@ -173,6 +175,7 @@ export function toFlowNodes(
             systemPrompt,
             isStreaming: streamingNodeIds?.has(node.id),
             onSendMessage: callbacks.onSendMessage,
+            onResetChat: callbacks.onResetChat,
             onDelete: callbacks.onDelete,
             onResizeEnd: callbacks.onResizeEnd,
           } satisfies ChatFlowNodeData,

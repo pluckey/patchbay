@@ -37,6 +37,22 @@ export const indexedDbBlobAdapter: BlobStoragePort = {
     })
   },
 
+  async storeWithId(id: string, blob: Blob): Promise<void> {
+    const db = await openDb()
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, "readwrite")
+      tx.objectStore(STORE_NAME).put({ id, blob, storedAt: Date.now() })
+      tx.oncomplete = () => {
+        db.close()
+        resolve()
+      }
+      tx.onerror = () => {
+        db.close()
+        reject(tx.error)
+      }
+    })
+  },
+
   async retrieve(blobId: string): Promise<Blob | null> {
     try {
       const db = await openDb()

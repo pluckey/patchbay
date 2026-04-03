@@ -17,7 +17,7 @@ src/
       use-cases/      ← Port-dependent orchestration (loadWorkspace, uploadPdf, executePipeline)
       ports/          ← Interfaces defined by the client (StoragePort, PdfRendererPort, etc.)
     adapters/
-      storage/        ← StoragePort, BlobStoragePort implementations (localStorage, IndexedDB)
+      storage/        ← StoragePort, BlobStoragePort implementations (server, localStorage, IndexedDB)
       canvas/         ← xyflow ↔ domain mapping (flow-node-mapper, use-canvas-binding)
       pdf/            ← PdfRendererPort implementation (pdf.js)
       execution/      ← TransformExecutorPort implementation (Web Worker)
@@ -27,7 +27,11 @@ src/
       app/            ← AdaptersContext (DI provider)
     lib/              ← Utilities (cn)
 
-  app/                ← COMPOSITION ROOT: Next.js App Router pages. Wires adapters to context.
+  server/             ← SERVER APPLICATION: Node.js-only utilities and adapters.
+    storage/          ← Filesystem persistence (.context-canvas/workspace.json, blobs/)
+    adapters/         ← External service adapters (Anthropic API)
+
+  app/                ← COMPOSITION ROOT: Next.js App Router pages + API routes. Wires adapters to context.
 ```
 
 ### Rules (non-negotiable)
@@ -40,6 +44,7 @@ src/
 6. **Components receive data and callbacks via props.** They never import adapters or domain use cases directly.
 7. **One composition root** (`src/app/page.tsx`) wires concrete adapters into `AdaptersProvider`. No other file creates adapter instances.
 8. **All state updates must be immutable** (new object references). xyflow won't re-render if you mutate.
+9. **Server layer imports only from kernel and Node.js built-ins.** Never from client/. Server utilities are consumed by API routes in `src/app/api/`.
 
 ### xyflow Containment
 

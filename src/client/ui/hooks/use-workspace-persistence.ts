@@ -25,18 +25,24 @@ export function useWorkspacePersistence({ storage, getViewport }: UseWorkspacePe
   connectionsRef.current = connections
   getViewportRef.current = getViewport
 
+  const isLoadedRef = useRef(false)
+
   // Load on mount
   useEffect(() => {
-    const workspace = loadWorkspace(storage)
-    setNodes(workspace.nodes)
-    setConnections(workspace.connections)
-    setInitialViewport(workspace.viewport)
-    setIsLoaded(true)
+    ;(async () => {
+      const workspace = await loadWorkspace(storage)
+      setNodes(workspace.nodes)
+      setConnections(workspace.connections)
+      setInitialViewport(workspace.viewport)
+      isLoadedRef.current = true
+      setIsLoaded(true)
+    })()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Debounced save
   const scheduleSave = useCallback((updatedNodes: WorkspaceNode[], updatedConnections?: Connection[]) => {
+    if (!isLoadedRef.current) return
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
     }
@@ -45,18 +51,18 @@ export function useWorkspacePersistence({ storage, getViewport }: UseWorkspacePe
         nodes: updatedNodes,
         connections: updatedConnections ?? connectionsRef.current,
         viewport: getViewportRef.current(),
-      })
+      }).catch(console.error)
     }, 300)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Beforeunload flush
+  // Beforeunload flush (fire-and-forget — write-through cache in adapter provides safety)
   useEffect(() => {
     const handleBeforeUnload = () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current)
       }
-      saveWorkspace(storage, {
+      storage.save({
         nodes: nodesRef.current,
         connections: connectionsRef.current,
         viewport: getViewportRef.current(),

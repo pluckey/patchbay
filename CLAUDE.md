@@ -2,32 +2,56 @@
 
 Spatial workspace for composing AI context. Next.js 16, TypeScript, Tailwind CSS 4, @xyflow/react.
 
-## Architecture: Clean Architecture (Uncle Bob)
+## Architecture: Clean Architecture
 
-The Dependency Rule is the law of this codebase: **source code dependencies point inward**.
+Client and server are distinct applications sharing a kernel. The Dependency Rule is the law: **source code dependencies point inward**.
 
 ```
 src/
-  domain/           ← INNER: zero framework imports. Pure TypeScript only.
-    entities/       ← Data types (WorkspaceNode, Workspace, Position, Viewport)
-    use-cases/      ← Pure functions (createNode, moveNode, etc.)
-    ports/          ← Interfaces defined by domain (StoragePort)
-  adapters/         ← MIDDLE: implements ports, maps between domain and frameworks
-    storage/        ← StoragePort implementations (localStorage)
-    canvas/         ← xyflow <-> domain type mapping (FlowNodeMapper)
-  components/       ← OUTER: React components
-  hooks/            ← OUTER: React hooks bridging UI to domain use cases
-  app/              ← OUTER: Next.js App Router pages
+  kernel/             ← INNERMOST: shared pure types + transforms. Zero ports, zero frameworks.
+    entities/         ← Data types (WorkspaceNode, Connection, Position, Viewport, PdfDocument)
+    transforms/       ← Pure functions (createNode, moveNode, validateConnection, etc.)
+
+  client/             ← CLIENT APPLICATION: its own Clean Architecture boundary
+    domain/
+      use-cases/      ← Port-dependent orchestration (loadWorkspace, uploadPdf, executePipeline)
+      ports/          ← Interfaces defined by the client (StoragePort, PdfRendererPort, etc.)
+    adapters/
+      storage/        ← StoragePort, BlobStoragePort implementations (localStorage, IndexedDB)
+      canvas/         ← xyflow ↔ domain mapping (flow-node-mapper, use-canvas-binding)
+      pdf/            ← PdfRendererPort implementation (pdf.js)
+      execution/      ← TransformExecutorPort implementation (Web Worker)
+    ui/
+      hooks/          ← React hooks bridging UI to domain use cases (via DI context)
+      components/     ← React components (receive data + callbacks via props)
+      app/            ← AdaptersContext (DI provider)
+    lib/              ← Utilities (cn)
+
+  app/                ← COMPOSITION ROOT: Next.js App Router pages. Wires adapters to context.
 ```
 
 ### Rules (non-negotiable)
 
-1. **Domain layer imports NOTHING from React, Next.js, xyflow, or any framework.** If you're adding an import from a framework package inside `src/domain/`, stop — you're violating the Dependency Rule.
-2. **Use cases are pure functions, not classes.** They take data in, return new data out. No mutation, no side effects. `(nodes, nodeId, content) => WorkspaceNode[]` — that's it.
-3. **Ports are defined by the domain, implemented by adapters.** The domain declares what it needs (StoragePort). The adapter layer provides it (localStorageAdapter). Never import an adapter inside domain.
-4. **xyflow types are contained to exactly 2 files:** `src/adapters/canvas/flow-node-mapper.ts` and `src/components/Canvas.tsx`. No xyflow imports anywhere else. This is what makes the canvas library swappable.
-5. **All state updates must be immutable** (new object references). xyflow won't re-render if you mutate. Use cases already enforce this — don't break it.
-6. **Hooks bridge UI to domain.** `useWorkspace` calls domain use cases. It does NOT re-implement logic. The hook is a bridge, not a brain.
+1. **Kernel imports NOTHING from client, React, Next.js, xyflow, or any framework.** Pure TypeScript only. No ports. If you're adding a framework import inside `src/kernel/`, stop.
+2. **Client domain never imports from client adapters.** Ports are defined in `client/domain/ports/`, implemented in `client/adapters/`. The dependency arrow points inward.
+3. **Kernel transforms are pure functions.** Data in, new data out. No mutation, no side effects, no port parameters.
+4. **Client use cases may take ports as arguments.** They coordinate between kernel transforms and infrastructure via dependency injection.
+5. **Hooks never import concrete adapters.** They receive port implementations via `useAdapters()` context. This makes them testable and adapter-swappable.
+6. **Components receive data and callbacks via props.** They never import adapters or domain use cases directly.
+7. **One composition root** (`src/app/page.tsx`) wires concrete adapters into `AdaptersProvider`. No other file creates adapter instances.
+8. **All state updates must be immutable** (new object references). xyflow won't re-render if you mutate.
+
+### xyflow Containment
+
+xyflow imports are allowed in:
+- `src/client/adapters/canvas/` — flow-node-mapper, use-canvas-binding
+- `src/client/ui/components/` — Canvas.tsx, CanvasProvider.tsx, NodeShell.tsx, node components (MarkdownNode, PdfNode, TransformNode)
+
+xyflow imports are NOT allowed in:
+- `src/kernel/` — never
+- `src/client/domain/` — never
+- `src/client/ui/hooks/` — hooks receive framework-agnostic callbacks
+- `src/app/` — uses CanvasProvider wrapper, not @xyflow directly
 
 ### Drag Concession Pattern
 
@@ -35,41 +59,88 @@ During an active drag, xyflow owns node position transiently (for 60fps). On `on
 
 ### Persistence Pattern
 
-- `StoragePort` interface in domain, `localStorageAdapter` in adapters
-- localStorage key: `"context-canvas:workspace"`, JSON with `version: 1` envelope
+- `StoragePort` interface in `client/domain/ports/`, `localStorageAdapter` in `client/adapters/storage/`
+- localStorage key: `"context-canvas:workspace"`, JSON with `version: 4` envelope
 - 300ms trailing-edge debounce on save after any mutation
 - Synchronous `beforeunload` flush to prevent data loss on tab close
 - `load()` returns `null` on any failure (parse error, missing key) — never throws
+
+### Dependency Injection Pattern
+
+- `AdaptersContext` in `client/ui/app/adapters-context.tsx` provides concrete adapters
+- `useAdapters()` hook returns `{ storage, blobStorage, pdfRenderer, transformExecutor }`
+- `src/app/page.tsx` creates the `AdaptersProvider` with concrete instances
+- Hooks and components consume via `useAdapters()` — never by direct import
+
+## Design System: Vercel Geist
+
+This project follows the [Geist design system](https://vercel.com/geist/introduction). All UI decisions must conform to these rules.
+
+### Fonts
+
+- **Geist Sans** (`font-sans`) — all UI text: headings, body, labels, buttons
+- **Geist Mono** (`font-mono`) — code blocks, technical content, transform editor
+- Never import or use other fonts
+
+### Colors: semantic tokens only
+
+**Never use hardcoded Tailwind colors** (`bg-red-500`, `text-gray-400`, `bg-zinc-900`, etc.). Always use shadcn semantic tokens.
+
+| Geist level | Purpose | shadcn token |
+|---|---|---|
+| Gray 1-3 | Component backgrounds | `bg-background`, `bg-card`, `bg-muted` |
+| Gray 4-6 | Borders | `border-border`, `border-input` |
+| Gray 9 | Secondary text/icons | `text-muted-foreground` |
+| Gray 10 | Primary text/icons | `text-foreground`, `text-card-foreground` |
+| Destructive | Danger/delete actions | `bg-destructive`, `text-destructive-foreground` |
+| Primary | Primary actions | `bg-primary`, `text-primary-foreground` |
+
+### Canvas node rule
+
+Canvas nodes must use `bg-background text-foreground`, not `bg-card`.
+
+### Forbidden patterns
+
+- `bg-white`, `bg-black`, `bg-gray-*`, `bg-zinc-*`, `bg-slate-*`, `bg-neutral-*`
+- `text-white`, `text-black`, `text-gray-*`, `text-zinc-*`
+- Any raw color: `bg-red-*`, `bg-blue-*`, `bg-green-*`, etc.
+- Exception: `prose dark:prose-invert` for rendered markdown
+
+### Components
+
+Use shadcn/ui components (`src/client/ui/components/ui/`) for all standard UI elements. Install with `npx shadcn@latest add <component>`.
 
 ## Conventions
 
 - **Files:** kebab-case (`create-node.ts`, `flow-node-mapper.ts`)
 - **Components:** PascalCase (`MarkdownNode.tsx`, `Canvas.tsx`)
 - **Types/entities:** PascalCase (`WorkspaceNode`, `Viewport`)
-- **Use cases:** camelCase exported functions (`createNode`, `moveNode`)
+- **Kernel transforms:** camelCase exported functions (`createNode`, `moveNode`)
 - **Ports:** PascalCase with `Port` suffix (`StoragePort`)
-- **Barrel exports:** `index.ts` in `entities/` and `use-cases/`
+- **Barrel exports:** `index.ts` in `kernel/entities/`, `kernel/transforms/`. NO barrels for components (conflicts with `'use client'`).
 
 ## When adding a new feature
 
-Ask: where does it live in the dependency graph?
-
 | What you're adding | Where it goes | What it can import |
 |---|---|---|
-| New data type | `domain/entities/` | Nothing (other entities only) |
-| New user action | `domain/use-cases/` | Entities + ports only |
-| New external boundary | `domain/ports/` (interface) + `adapters/` (implementation) | Port imports entities; adapter imports port |
-| New UI element | `components/` | Other components, hooks |
-| New framework integration | `adapters/` | Domain types + the framework |
+| New data type | `kernel/entities/` | Nothing (other entities only) |
+| New pure transform | `kernel/transforms/` | Kernel entities only |
+| New port interface | `client/domain/ports/` | Kernel entities |
+| New orchestration/use case | `client/domain/use-cases/` | Kernel + ports |
+| New adapter | `client/adapters/` | Kernel + ports + the framework it adapts |
+| New UI component | `client/ui/components/` | Other components, kernel types via props |
+| New hook | `client/ui/hooks/` | Kernel transforms + client use cases + `useAdapters()` |
 
 ## Known traps
 
 - `@xyflow/react` v12: Use `OnNodeDrag` type, not `NodeDragHandler` (doesn't exist)
-- `fitView()` must be called after nodes render, not before — use `onInit` or post-render callback
+- `fitView()` must be called after nodes render, not before
 - Client components need `'use client'` directive (Next.js App Router)
 - Tailwind v4: `@import "tailwindcss"` + `@plugin` syntax, not v3 `@tailwind` directives
-- localStorage ~5MB limit — sufficient for text nodes, will need migration for binary sources
+- localStorage ~5MB limit — sufficient for text nodes, IndexedDB for binary
+- `components.json` paths must match `client/ui/` structure for `npx shadcn add` to work
+- PdfRendererPort.renderPage returns HTMLCanvasElement — known tech debt (DOM type in port interface)
 
 ## Specs
 
-Feature specs live in `.specs/features/`. The context module for the Feature Architect protocol is `context.md`. Both should be kept in sync with this file if architectural patterns change.
+Feature specs live in `.specs/features/`. The context module is `context.md`. Both should be kept in sync with this file.

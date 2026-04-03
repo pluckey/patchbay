@@ -4,6 +4,7 @@ center: "The template node composes multiple named inputs into a single text out
 center_test:
   excludes: "Add JS helper functions to transforms — improves code-based composition, not a visual code-free surface"
   boundary: "A markdown node with special syntax — lacks named input slots and automatic pipeline substitution"
+archetypes: [modality-addition]
 mode: express
 analogues: []
 ---

@@ -1,6 +1,7 @@
 ---
 feature: client-architecture
 center: "Client and server are distinct applications with independent Clean Architecture boundaries, sharing a kernel of pure entity types and port-free transforms."
+archetypes: [separation-of-concerns]
 stage: design
 intensity: focused
 loop_iterations: 1

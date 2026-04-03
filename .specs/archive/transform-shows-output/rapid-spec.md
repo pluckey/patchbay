@@ -4,6 +4,7 @@ center: "The transform node shows its own output directly — no separate derive
 center_test:
   excludes: "Make derived nodes editable — improves derived nodes rather than eliminating them"
   boundary: "Auto-hide derived nodes — hides the symptom, doesn't simplify the topology"
+archetypes: [surface-redesign]
 mode: express
 analogues: []
 ---

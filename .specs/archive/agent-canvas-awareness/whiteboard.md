@@ -4,7 +4,6 @@ center: "This feature gives an AI coding agent ongoing structural awareness of t
 center_test:
   excludes: "Version history for the workspace — a good feature that improves individual recovery of past states but contributes nothing to an agent's ongoing awareness of the current arrangement."
   boundary: "A user takes a screenshot of their canvas and pastes it into a chat with the coding agent — almost serves the center because the agent receives spatial information, but fails on two counts: it is a one-time snapshot (not ongoing), and it provides pixel-level impression rather than structural access."
-archetypes: [integration-wiring, surface-redesign]
 stage: whiteboard
 intensity: deep
 loop_iterations: 1

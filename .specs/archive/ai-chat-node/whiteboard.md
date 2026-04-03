@@ -4,6 +4,7 @@ center: "The chat node closes the feedback loop between spatial context arrangem
 center_test:
   excludes: "A batch export feature that renders canvas content to a static document — produces output but closes no feedback loop and enables no conversational refinement"
   boundary: "A context preview pane that shows the linearized prompt before sending — reveals what the composition produces but provides visibility without conversational feedback that drives discovery"
+archetypes: [modality-addition, integration-wiring]
 stage: whiteboard
 intensity: standard
 loop_iterations: 1

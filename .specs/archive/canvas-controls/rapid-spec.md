@@ -4,6 +4,7 @@ center: "Users can create and remove any element on the canvas through direct in
 center_test:
   excludes: "Undo/redo system — addresses reversibility, not direct creation and deletion"
   boundary: "Keyboard shortcuts for node operations — improves efficiency but the base creation/deletion interactions must exist first"
+archetypes: [surface-redesign]
 mode: express
 analogues: []
 ---

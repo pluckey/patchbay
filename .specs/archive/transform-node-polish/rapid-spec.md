@@ -4,6 +4,7 @@ center: "The transform node is a reliable, configurable execution environment th
 center_test:
   excludes: "AI-powered transforms — changes the transform mechanism, not the execution environment"
   boundary: "Prettier code editor theme — improves aesthetics but doesn't address execution reliability or debuggability"
+archetypes: [surface-redesign, quality-gate]
 mode: express
 analogues: []
 ---

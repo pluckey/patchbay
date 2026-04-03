@@ -4,7 +4,6 @@ center: "Eliminate architectural violations and security gaps introduced during 
 center_test:
   excludes: "Adding new persistence features (change tracking, multi-workspace) — good ideas, but not about honoring existing contracts."
   boundary: "Refactoring StorageEnvelope to a richer format — almost qualifies but goes beyond fixing what's broken into redesigning what works."
-archetypes: [quality-gate, separation-of-concerns]
 mode: express
 analogues: []
 ---

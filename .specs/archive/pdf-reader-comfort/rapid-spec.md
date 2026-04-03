@@ -4,6 +4,7 @@ center: "The PDF viewer node provides the reading comfort and navigation efficie
 center_test:
   excludes: "PDF text extraction for AI context composition — about data flow out of the node, not reading comfort within it."
   boundary: "PDF annotation/highlighting — crosses from reading into editing, which is a different feature."
+archetypes: [surface-redesign]
 mode: express
 analogues: [pdf-viewer-node, pdf-viewer-cleanup]
 ---

@@ -4,6 +4,7 @@ center: "This feature makes the user's context-construction process — what the
 center_test:
   excludes: "AI-powered auto-summarization of PDFs — good feature, but it automates rather than illuminates the construction process, removing the user from the loop"
   boundary: "A batch script that processes all source documents into a finished prompt — it transforms sources into AI context, but the construction process is hidden inside the script, not spatial or experimentable"
+archetypes: [pipeline-decomposition, modality-addition]
 stage: whiteboard
 intensity: deep
 loop_iterations: 1

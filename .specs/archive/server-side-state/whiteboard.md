@@ -4,7 +4,6 @@ center: "Making the workspace a self-standing, persistent artifact — not a der
 center_test:
   excludes: "Real-time collaborative editing — good feature, but requires conflict resolution and concurrent-write coordination that don't serve independent accessibility."
   boundary: "Exporting the workspace as a static file that the agent can read — almost serves the center but fails because a static export is a derivative snapshot, not the authoritative source."
-archetypes: [schema-evolution, separation-of-concerns, integration-wiring]
 stage: whiteboard
 intensity: standard
 loop_iterations: 1

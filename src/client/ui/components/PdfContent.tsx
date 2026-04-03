@@ -51,25 +51,37 @@ export function PdfContent({
     onNavigatePage,
   })
 
+  // Track canvas host content width so renders respond to node resizing
+  const [hostWidth, setHostWidth] = useState(0)
+  useEffect(() => {
+    const host = canvasHostRef.current
+    if (!host) return
+    const measure = () => {
+      const padding = parseFloat(getComputedStyle(host).paddingLeft) + parseFloat(getComputedStyle(host).paddingRight)
+      setHostWidth(host.clientWidth - padding)
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(host)
+    return () => ro.disconnect()
+  }, [status])
+
   useEffect(() => {
     if (!doc) return
     doc.getOutline().then(setOutline).catch(() => setOutline(null))
   }, [doc])
 
   useEffect(() => {
-    if (status !== "ready") return
+    if (status !== "ready" || hostWidth === 0) return
     let cancelled = false
-    const width = containerRef.current?.clientWidth ?? 400
-    renderPage(currentPage, width, zoomLevel).then((canvas) => {
+    renderPage(currentPage, hostWidth, zoomLevel).then((canvas) => {
       if (cancelled || !canvas || !canvasHostRef.current) return
       canvasHostRef.current.innerHTML = ""
-      canvas.style.width = "100%"
-      canvas.style.height = "auto"
       canvasHostRef.current.appendChild(canvas)
     })
-    preRenderAdjacent(currentPage, totalPages, width, zoomLevel)
+    preRenderAdjacent(currentPage, totalPages, hostWidth, zoomLevel)
     return () => { cancelled = true }
-  }, [status, currentPage, totalPages, zoomLevel, renderPage, preRenderAdjacent])
+  }, [status, currentPage, totalPages, zoomLevel, hostWidth, renderPage, preRenderAdjacent])
 
   const handleTocNavigate = useCallback(
     (pageNumber: number) => {
@@ -103,22 +115,19 @@ export function PdfContent({
     [currentPage, totalPages, onNavigatePage]
   )
 
-  const handleFitToWidth = useCallback(async () => {
-    if (!doc) return
-    const containerWidth = containerRef.current?.clientWidth ?? 400
-    const dims = await pdfRenderer.getPageDimensions(doc, currentPage)
-    onZoomChange(containerWidth / dims.width)
-  }, [doc, currentPage, pdfRenderer, onZoomChange])
+  const handleFitToWidth = useCallback(() => {
+    // zoomLevel 1.0 = fit to container width (render scale = containerWidth / 612 * 1.0)
+    onZoomChange(1)
+  }, [onZoomChange])
 
   const handleFitToPage = useCallback(async () => {
-    if (!doc || !containerRef.current) return
-    const containerWidth = containerRef.current.clientWidth
-    const containerHeight = containerRef.current.clientHeight
+    if (!doc || !canvasHostRef.current || hostWidth === 0) return
+    const hostHeight = canvasHostRef.current.clientHeight
     const dims = await pdfRenderer.getPageDimensions(doc, currentPage)
-    const scaleW = containerWidth / dims.width
-    const scaleH = containerHeight / dims.height
-    onZoomChange(Math.min(scaleW, scaleH))
-  }, [doc, currentPage, pdfRenderer, onZoomChange])
+    const baseScale = hostWidth / dims.width
+    const heightZoom = hostHeight / (baseScale * dims.height)
+    onZoomChange(Math.min(1, heightZoom))
+  }, [doc, currentPage, pdfRenderer, onZoomChange, hostWidth])
 
   if (status === "loading") {
     return (

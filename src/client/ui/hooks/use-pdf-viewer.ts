@@ -59,7 +59,10 @@ export function usePdfViewer({ blobId, blobStorage, renderer }: UsePdfViewerArgs
     }
   }, [blobId, blobStorage, renderer])
 
-  const getCacheKey = (pageNum: number, width: number, zoom: number) => `${pageNum}:${width}:${zoom}`
+  const getCacheKey = (pageNum: number, width: number, zoom: number) => {
+    const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1
+    return `${pageNum}:${width}:${zoom}:${dpr}`
+  }
 
   // Render a page — serves from cache if available, evicts LRU if full
   const renderPage = useCallback(
@@ -79,7 +82,7 @@ export function usePdfViewer({ blobId, blobStorage, renderer }: UsePdfViewerArgs
 
       // Cache miss — render
       try {
-        const scale = Math.max((containerWidth / 612) * zoomLevel, 0.5)
+        const scale = Math.max((containerWidth / 612) * zoomLevel, 0.1)
         const canvas = await renderer.renderPage(state.doc, pageNum, scale)
 
         // Evict LRU if cache is full

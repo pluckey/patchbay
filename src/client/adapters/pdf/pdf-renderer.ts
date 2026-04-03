@@ -103,11 +103,16 @@ export const pdfRenderer: PdfRendererPort = {
   ): Promise<HTMLCanvasElement> {
     const proxy = getProxy(doc)
     const page = await proxy.getPage(pageNum)
-    const viewport = page.getViewport({ scale })
+    const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1
+    const viewport = page.getViewport({ scale: scale * dpr })
 
     const canvas = document.createElement("canvas")
     canvas.width = viewport.width
     canvas.height = viewport.height
+    // CSS dimensions at the logical (non-DPR) size so the browser downscales
+    const logicalViewport = page.getViewport({ scale })
+    canvas.style.width = `${logicalViewport.width}px`
+    canvas.style.height = `${logicalViewport.height}px`
     const ctx = canvas.getContext("2d")!
     await page.render({ canvasContext: ctx, viewport }).promise
 

@@ -9,9 +9,11 @@ import {
   type Node,
   type Edge,
   type NodeTypes,
+  type EdgeTypes,
   type OnNodeDrag,
   type OnNodesChange,
   type OnConnect,
+  type OnEdgesChange,
   type Viewport,
   useReactFlow,
 } from "@xyflow/react"
@@ -20,20 +22,26 @@ import { MarkdownNode } from "./MarkdownNode"
 import { PdfNode } from "./PdfNode"
 import { TransformNode } from "./TransformNode"
 import { ChatNode } from "./ChatNode"
+import { LabeledEdge } from "./LabeledEdge"
 
 type CanvasProps = {
   nodes: Node[]
   edges: Edge[]
   onNodesChange: OnNodesChange
+  onEdgesChange: OnEdgesChange
   onNodeDragStop: OnNodeDrag
   onConnect: OnConnect
   initialViewport: Viewport | null
   onDropPdf?: (file: File, position: { x: number; y: number }) => void
 }
 
-export function Canvas({ nodes, edges, onNodesChange, onNodeDragStop, onConnect, initialViewport, onDropPdf }: CanvasProps) {
+export function Canvas({ nodes, edges, onNodesChange, onEdgesChange, onNodeDragStop, onConnect, initialViewport, onDropPdf }: CanvasProps) {
   const nodeTypes: NodeTypes = useMemo(
     () => ({ markdownNode: MarkdownNode, pdfNode: PdfNode, transformNode: TransformNode, chatNode: ChatNode }),
+    []
+  )
+  const edgeTypes: EdgeTypes = useMemo(
+    () => ({ labeledEdge: LabeledEdge }),
     []
   )
   const defaultEdgeOptions = useMemo(
@@ -71,15 +79,17 @@ export function Canvas({ nodes, edges, onNodesChange, onNodeDragStop, onConnect,
       nodes={nodes}
       edges={edges}
       nodeTypes={nodeTypes}
+      edgeTypes={edgeTypes}
       defaultEdgeOptions={defaultEdgeOptions}
       onNodesChange={onNodesChange}
+      onEdgesChange={onEdgesChange}
       onNodeDragStop={onNodeDragStop}
       onConnect={onConnect}
       defaultViewport={initialViewport ?? undefined}
       fitView={!initialViewport}
       fitViewOptions={{ padding: 0.2 }}
       proOptions={{ hideAttribution: true }}
-      deleteKeyCode={null}
+      deleteKeyCode={["Backspace", "Delete"]}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >

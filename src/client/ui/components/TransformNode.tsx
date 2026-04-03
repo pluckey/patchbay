@@ -24,7 +24,7 @@ function formatDuration(ms: number): string {
 
 function TransformNodeInner({ data }: NodeProps) {
   const {
-    nodeId, transformCode, timeoutMs, transformResult, sourceNodeType,
+    nodeId, transformCode, timeoutMs, transformResult, inputLegend,
     onTransformCodeChange, onTimeoutChange, onRerun, onDelete, onResizeEnd,
   } = data as unknown as TransformFlowNodeData
 
@@ -84,11 +84,24 @@ function TransformNodeInner({ data }: NodeProps) {
   return (
     <NodeShell nodeId={nodeId} onDelete={onDelete} onResizeEnd={onResizeEnd} header={header}>
       <div className="p-2 gap-1 h-full" style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        {/* Input legend */}
+        {inputLegend.length > 0 && (
+          <div className="border-b border-border pb-1 mb-1 shrink-0">
+            {inputLegend.map((entry) => (
+              <div key={entry.label} className="text-[10px] text-muted-foreground font-mono">
+                <span className="text-foreground">input.{entry.label}</span>
+                <span className="mx-1">&larr;</span>
+                <span>{entry.sourceName} ({entry.sourceType})</span>
+              </div>
+            ))}
+          </div>
+        )}
+
         {isEditing ? (
           <Suspense fallback={<div className="flex-1 flex items-center justify-center text-xs text-muted-foreground">Loading editor...</div>}>
             <TransformCodeEditor
               value={transformCode}
-              sourceNodeType={sourceNodeType ?? "markdown"}
+              inputLegend={inputLegend}
               onChange={(code) => onTransformCodeChange(nodeId, code)}
               onClose={() => setIsEditing(false)}
             />

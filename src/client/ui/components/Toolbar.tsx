@@ -5,16 +5,20 @@ import { Button } from "@/client/ui/components/ui/button"
 
 type ToolbarProps = {
   onAddNode: () => void
+  onAddTransform?: () => void
   onAddChat?: () => void
   onUploadPdf?: (file: File) => void
 }
 
-export function Toolbar({ onAddNode, onAddChat, onUploadPdf }: ToolbarProps) {
+export function Toolbar({ onAddNode, onAddTransform, onAddChat, onUploadPdf }: ToolbarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   return (
     <div className="absolute top-4 left-4 z-10 flex gap-2">
       <Button onClick={onAddNode}>+ Markdown</Button>
+      {onAddTransform && (
+        <Button variant="outline" onClick={onAddTransform}>+ Transform</Button>
+      )}
       {onAddChat && (
         <Button variant="outline" onClick={onAddChat}>+ Chat</Button>
       )}

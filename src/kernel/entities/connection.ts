@@ -2,6 +2,7 @@ export type Connection = {
   id: string
   sourceId: string
   targetId: string
+  label: string
   createdAt: number
 }
 

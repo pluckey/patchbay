@@ -3,7 +3,7 @@ import type { Position, TransformNodeData } from "../entities"
 
 export function createTransformNode(
   position: Position,
-  transformCode: string = "return input.text"
+  transformCode: string = "// Access inputs by connection label:\n// return input.my_label.text\nreturn JSON.stringify(Object.keys(input))"
 ): TransformNodeData {
   const now = Date.now()
   return {

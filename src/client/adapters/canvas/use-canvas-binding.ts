@@ -1,10 +1,11 @@
 "use client"
 
 import { useState, useCallback, useEffect, useMemo } from "react"
-import type { Node, Edge, OnNodeDrag, OnNodesChange, NodeChange, Connection as FlowConnection } from "@xyflow/react"
-import { applyNodeChanges, useReactFlow } from "@xyflow/react"
+import type { Node, Edge, OnNodeDrag, OnNodesChange, OnEdgesChange, NodeChange, EdgeChange, Connection as FlowConnection } from "@xyflow/react"
+import { applyNodeChanges, applyEdgeChanges, useReactFlow } from "@xyflow/react"
 import type { WorkspaceNode, Connection, TransformResult } from "@/kernel/entities"
 import { toFlowNodes, toFlowEdges, fromNodeDragStop } from "@/client/adapters/canvas/flow-node-mapper"
+import { resolveChatSystemPrompts } from "@/client/domain/use-cases/resolve-chat-prompts"
 
 function applyChanges(changes: NodeChange[], nodes: Node[]): Node[] {
   return applyNodeChanges(changes, nodes)
@@ -14,6 +15,7 @@ type UseCanvasBindingArgs = {
   nodes: WorkspaceNode[]
   connections: Connection[]
   pipelineResults: Map<string, TransformResult>
+  streamingNodeIds: Set<string>
   onContentChange: (nodeId: string, content: string) => void
   onDelete: (nodeId: string) => void
   onMove: (nodeId: string, position: { x: number; y: number }) => void
@@ -28,6 +30,7 @@ type UseCanvasBindingArgs = {
   onCreatePipeline: (sourceId: string, targetId: string) => void
   onCreateConnection: (sourceId: string, targetId: string) => boolean
   onRemoveConnection: (connectionId: string) => void
+  onUpdateConnectionLabel: (connectionId: string, label: string) => void
   getViewport: () => { x: number; y: number; zoom: number }
 }
 
@@ -35,6 +38,7 @@ export function useCanvasBinding({
   nodes,
   connections,
   pipelineResults,
+  streamingNodeIds,
   onContentChange,
   onDelete,
   onMove,
@@ -49,27 +53,15 @@ export function useCanvasBinding({
   onCreatePipeline,
   onCreateConnection,
   onRemoveConnection,
+  onUpdateConnectionLabel,
 }: UseCanvasBindingArgs) {
   const [flowNodes, setFlowNodes] = useState<Node[]>([])
 
   // Precompute system prompts for chat nodes
-  const chatSystemPrompts = useMemo(() => {
-    const prompts = new Map<string, string>()
-    for (const node of nodes) {
-      if (node.type !== "chat") continue
-      const incomingConn = connections.find((c) => c.targetId === node.id)
-      if (!incomingConn) continue
-      const sourceNode = nodes.find((n) => n.id === incomingConn.sourceId)
-      if (!sourceNode) continue
-      const sourceDerived = pipelineResults.get(sourceNode.id)
-      if (sourceDerived?.status === "success") {
-        prompts.set(node.id, sourceDerived.output)
-      } else if (sourceNode.type === "markdown") {
-        prompts.set(node.id, sourceNode.content)
-      }
-    }
-    return prompts
-  }, [nodes, connections, pipelineResults])
+  const chatSystemPrompts = useMemo(
+    () => resolveChatSystemPrompts(nodes, connections, pipelineResults),
+    [nodes, connections, pipelineResults]
+  )
 
   // Sync domain state → flow nodes on CRUD changes
   useEffect(() => {
@@ -84,19 +76,35 @@ export function useCanvasBinding({
       onTimeoutChange,
       onRerun,
       onSendMessage,
-    }, pipelineResults, chatSystemPrompts))
-  }, [nodes, connections, pipelineResults, chatSystemPrompts, onContentChange, onDelete, onResize, onNavigatePage, onZoomChange, onDarkModeToggle, onTransformCodeChange, onTimeoutChange, onRerun, onSendMessage])
+    }, pipelineResults, chatSystemPrompts, streamingNodeIds))
+  }, [nodes, connections, pipelineResults, chatSystemPrompts, streamingNodeIds, onContentChange, onDelete, onResize, onNavigatePage, onZoomChange, onDarkModeToggle, onTransformCodeChange, onTimeoutChange, onRerun, onSendMessage])
 
   // Sync domain connections → flow edges
-  const flowEdges: Edge[] = useMemo(() =>
-    toFlowEdges(connections),
-    [connections]
-  )
+  const [flowEdges, setFlowEdges] = useState<Edge[]>([])
+  useEffect(() => {
+    setFlowEdges(toFlowEdges(connections, { onLabelChange: onUpdateConnectionLabel }))
+  }, [connections, onUpdateConnectionLabel])
 
   // Transient flow changes (drag position, selection) — xyflow owns these
   const onNodesChange: OnNodesChange = useCallback((changes) => {
     setFlowNodes((prev) => applyChanges(changes, prev))
   }, [])
+
+  // Edge changes — apply selection, intercept removals to route to domain
+  const onEdgesChange: OnEdgesChange = useCallback((changes: EdgeChange[]) => {
+    const removals = changes.filter((c): c is EdgeChange & { type: "remove" } => c.type === "remove")
+    const nonRemovals = changes.filter((c) => c.type !== "remove")
+
+    // Apply selection and other transient changes
+    if (nonRemovals.length > 0) {
+      setFlowEdges((prev) => applyEdgeChanges(nonRemovals, prev))
+    }
+
+    // Route removals to domain
+    for (const removal of removals) {
+      onRemoveConnection(removal.id)
+    }
+  }, [onRemoveConnection])
 
   // Commit final position to domain on drag stop
   const onNodeDragStop: OnNodeDrag = useCallback(
@@ -146,6 +154,7 @@ export function useCanvasBinding({
     flowNodes,
     flowEdges,
     onNodesChange,
+    onEdgesChange,
     onNodeDragStop,
     onConnect,
     createAtCenter,

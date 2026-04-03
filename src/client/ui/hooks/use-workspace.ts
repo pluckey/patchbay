@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback } from "react"
+import { useCallback, useState } from "react"
 import type { Viewport } from "@/kernel/entities"
 import { createNode } from "@/kernel/transforms/create-node"
 import { updateNodeContent } from "@/kernel/transforms/update-node-content"
@@ -15,6 +15,7 @@ import { validateConnection } from "@/kernel/transforms/validate-connection"
 import { createTransformNode } from "@/kernel/transforms/create-transform-node"
 import { updateTransformCode } from "@/kernel/transforms/update-transform-code"
 import { updateTransformTimeout } from "@/kernel/transforms/update-transform-timeout"
+import { updateConnectionLabel } from "@/kernel/transforms/update-connection-label"
 import { createChatNode } from "@/kernel/transforms/create-chat-node"
 import { removeNodeWithCleanup } from "@/client/domain/use-cases/remove-node-with-cleanup"
 import { sendChatMessage } from "@/client/domain/use-cases/send-chat-message"
@@ -139,7 +140,7 @@ export function useWorkspace({ getViewport }: UseWorkspaceArgs) {
       const validation = validateConnection(connectionsRef.current, nodesRef.current, sourceId, targetId)
       if (!validation.valid) return false
 
-      const conn = createConnection(sourceId, targetId)
+      const conn = createConnection(sourceId, targetId, nodesRef.current, connectionsRef.current)
       setConnections((prev) => {
         const updated = [...prev, conn]
         scheduleSave(nodesRef.current, updated)
@@ -171,8 +172,9 @@ export function useWorkspace({ getViewport }: UseWorkspaceArgs) {
       const midY = (sourceNode.position.y + targetNode.position.y) / 2
       const transformNode = createTransformNode({ x: midX, y: midY })
 
-      const conn1 = createConnection(sourceId, transformNode.id)
-      const conn2 = createConnection(transformNode.id, targetId)
+      const nodesWithTransform = [...nodesRef.current, transformNode]
+      const conn1 = createConnection(sourceId, transformNode.id, nodesWithTransform, connectionsRef.current)
+      const conn2 = createConnection(transformNode.id, targetId, nodesWithTransform, [...connectionsRef.current, conn1])
 
       setNodes((prev) => {
         const updated = [...prev, transformNode]
@@ -220,10 +222,25 @@ export function useWorkspace({ getViewport }: UseWorkspaceArgs) {
     [setNodes, scheduleSave]
   )
 
+  const handleAddTransformNode = useCallback(
+    (position: { x: number; y: number }) => {
+      setNodes((prev) => {
+        const node = createTransformNode(position)
+        const updated = [...prev, node]
+        scheduleSave(updated)
+        return updated
+      })
+    },
+    [setNodes, scheduleSave]
+  )
+
   const { chat } = useAdapters()
+  const [streamingNodeIds, setStreamingNodeIds] = useState<Set<string>>(new Set())
 
   const handleSendMessage = useCallback(
     async (nodeId: string, content: string, systemPrompt: string) => {
+      setStreamingNodeIds((prev) => new Set(prev).add(nodeId))
+
       const updates = sendChatMessage({
         nodeId,
         content,
@@ -241,11 +258,27 @@ export function useWorkspace({ getViewport }: UseWorkspaceArgs) {
           )
         )
         if (update.type === "complete" || update.type === "error") {
+          setStreamingNodeIds((prev) => {
+            const next = new Set(prev)
+            next.delete(nodeId)
+            return next
+          })
           scheduleSave(nodesRef.current)
         }
       }
     },
     [setNodes, nodesRef, scheduleSave, chat]
+  )
+
+  const handleUpdateConnectionLabel = useCallback(
+    (connectionId: string, label: string) => {
+      setConnections((prev) => {
+        const updated = updateConnectionLabel(prev, connectionId, label)
+        scheduleSave(nodesRef.current, updated)
+        return updated
+      })
+    },
+    [setConnections, nodesRef, scheduleSave]
   )
 
   return {
@@ -267,7 +300,10 @@ export function useWorkspace({ getViewport }: UseWorkspaceArgs) {
     handleTimeoutChange,
     handleZoomChange,
     handleDarkModeToggle,
+    handleAddTransformNode,
     handleAddChatNode,
     handleSendMessage,
+    handleUpdateConnectionLabel,
+    streamingNodeIds,
   }
 }

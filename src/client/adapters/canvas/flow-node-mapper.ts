@@ -1,5 +1,5 @@
 import type { Node, Edge } from "@xyflow/react"
-import type { Position, WorkspaceNode, Connection, TransformResult, Message } from "@/kernel/entities"
+import type { Position, WorkspaceNode, Connection, TransformResult, Message, InputLegendEntry } from "@/kernel/entities"
 
 export type MarkdownFlowNodeData = {
   nodeId: string
@@ -27,12 +27,14 @@ export type PdfFlowNodeData = {
   onResizeEnd: (nodeId: string, dimensions: { width: number; height: number }) => void
 }
 
+export type { InputLegendEntry } from "@/kernel/entities"
+
 export type TransformFlowNodeData = {
   nodeId: string
   transformCode: string
   timeoutMs: number
   transformResult?: TransformResult
-  sourceNodeType?: "markdown" | "pdf"
+  inputLegend: InputLegendEntry[]
   onTransformCodeChange: (nodeId: string, code: string) => void
   onTimeoutChange: (nodeId: string, timeoutMs: number) => void
   onRerun: (nodeId: string) => void
@@ -72,7 +74,8 @@ export function toFlowNodes(
   connections: Connection[],
   callbacks: FlowCallbacks,
   pipelineResults?: Map<string, TransformResult>,
-  chatSystemPrompts?: Map<string, string>
+  chatSystemPrompts?: Map<string, string>,
+  streamingNodeIds?: Set<string>
 ): Node[] {
   return nodes.map((node) => {
     const base = {
@@ -124,10 +127,15 @@ export function toFlowNodes(
           } satisfies PdfFlowNodeData,
         }
       case "transform": {
-        // Determine source node type for intellisense context
-        const incomingConn = connections.find((c) => c.targetId === node.id)
-        const sourceNode = incomingConn ? nodes.find((n) => n.id === incomingConn.sourceId) : undefined
-        const sourceNodeType = sourceNode?.type === "pdf" ? "pdf" as const : "markdown" as const
+        // Build input legend from all incoming connections
+        const incomingConns = connections.filter((c) => c.targetId === node.id)
+        const inputLegend: InputLegendEntry[] = incomingConns.map((c) => {
+          const src = nodes.find((n) => n.id === c.sourceId)
+          const sourceName = src?.type === "pdf" ? src.filename
+            : src?.type === "markdown" ? extractMarkdownName(src.content)
+            : src?.type ?? "unknown"
+          return { label: c.label, sourceName, sourceType: src?.type ?? "unknown" }
+        })
 
         // Find downstream target to get pipeline result
         const outgoingConn = connections.find((c) => c.sourceId === node.id)
@@ -142,7 +150,7 @@ export function toFlowNodes(
             transformCode: node.transformCode,
             timeoutMs: node.timeoutMs,
             transformResult,
-            sourceNodeType,
+            inputLegend,
             onTransformCodeChange: callbacks.onTransformCodeChange,
             onTimeoutChange: callbacks.onTimeoutChange,
             onRerun: callbacks.onRerun,
@@ -163,6 +171,7 @@ export function toFlowNodes(
             provider: node.provider,
             model: node.model,
             systemPrompt,
+            isStreaming: streamingNodeIds?.has(node.id),
             onSendMessage: callbacks.onSendMessage,
             onDelete: callbacks.onDelete,
             onResizeEnd: callbacks.onResizeEnd,
@@ -173,13 +182,23 @@ export function toFlowNodes(
   })
 }
 
-export function toFlowEdges(connections: Connection[]): Edge[] {
+type EdgeCallbacks = {
+  onLabelChange: (connectionId: string, label: string) => void
+}
+
+export function toFlowEdges(connections: Connection[], edgeCallbacks: EdgeCallbacks): Edge[] {
   return connections.map((conn) => ({
     id: conn.id,
     source: conn.sourceId,
     target: conn.targetId,
-    type: "default",
+    type: "labeledEdge",
     animated: true,
+    selectable: true,
+    interactionWidth: 20,
+    data: {
+      label: conn.label,
+      onLabelChange: edgeCallbacks.onLabelChange,
+    },
   }))
 }
 
@@ -191,4 +210,11 @@ export function fromNodeDragStop(node: {
     nodeId: node.id,
     position: node.position ?? { x: 0, y: 0 },
   }
+}
+
+function extractMarkdownName(content: string): string {
+  const headingMatch = content.match(/^#+\s+(.+)$/m)
+  if (headingMatch) return headingMatch[1].trim().substring(0, 30)
+  const firstLine = content.trim().substring(0, 25)
+  return firstLine || "Untitled"
 }

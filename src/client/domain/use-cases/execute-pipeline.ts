@@ -1,4 +1,4 @@
-import type { WorkspaceNode, Connection, TransformResult } from "@/kernel/entities"
+import type { WorkspaceNode, Connection, TransformResult, ResolvedInput } from "@/kernel/entities"
 import type { TransformExecutorPort } from "@/client/domain/ports/transform-executor-port"
 import type { BlobStoragePort } from "@/client/domain/ports/blob-storage-port"
 import type { PdfRendererPort } from "@/client/domain/ports/pdf-renderer-port"
@@ -9,17 +9,22 @@ type ExecutePipelineDeps = {
   pdfRenderer: PdfRendererPort
 }
 
-export async function executePipeline(
-  transformNode: WorkspaceNode & { type: "transform" },
+/**
+ * Resolves a single source node into its content representation.
+ */
+async function resolveSourceContent(
   sourceNode: WorkspaceNode,
-  deps: ExecutePipelineDeps
-): Promise<TransformResult> {
+  deps: ExecutePipelineDeps,
+  priorResults?: Map<string, TransformResult>
+): Promise<ResolvedInput> {
+  // Check if this node has derived content from a prior pipeline stage
+  const derived = priorResults?.get(sourceNode.id)
+  if (derived?.status === "success") {
+    return { text: derived.output, type: "derived" as const }
+  }
+
   if (sourceNode.type === "markdown") {
-    const input = {
-      text: sourceNode.content,
-      type: "markdown" as const,
-    }
-    return deps.transformExecutor.execute(transformNode.transformCode, input, transformNode.timeoutMs)
+    return { text: sourceNode.content, type: "markdown" as const }
   }
 
   if (sourceNode.type === "pdf") {
@@ -27,21 +32,19 @@ export async function executePipeline(
     try {
       blob = await deps.blobStorage.retrieve(sourceNode.blobId)
     } catch {
-      return { status: "error", message: "Failed to retrieve PDF blob.", durationMs: 0 }
+      return { text: "", type: "derived" as const }
     }
     if (!blob) {
-      return { status: "error", message: "PDF blob not found.", durationMs: 0 }
+      return { text: "", type: "derived" as const }
     }
 
     const doc = await deps.pdfRenderer.loadDocument(blob)
     try {
-      // Pre-extract all page texts so the worker has full access without the doc proxy
       const pages: string[] = []
       for (let i = 1; i <= doc.numPages; i++) {
         pages.push(await deps.pdfRenderer.getPageText(doc, i))
       }
-
-      const input = {
+      return {
         text: pages[sourceNode.currentPage - 1] ?? "",
         pages,
         type: "pdf" as const,
@@ -49,39 +52,45 @@ export async function executePipeline(
         totalPages: sourceNode.totalPages,
         filename: sourceNode.filename,
       }
-      return await deps.transformExecutor.execute(transformNode.transformCode, input, transformNode.timeoutMs)
     } finally {
       await doc.destroy()
     }
   }
 
-  return { status: "error", message: "Cannot use a transform node as a source.", durationMs: 0 }
+  return { text: "", type: "derived" as const }
 }
 
 /**
- * Resolves the pipeline for a transform node: finds its source node via
- * incoming connections and executes the transform.
+ * Resolves ALL incoming connections for a transform node, builds a named
+ * input object keyed by connection label, and executes the transform.
  */
 export async function resolveAndExecute(
   transformNodeId: string,
   nodes: WorkspaceNode[],
   connections: Connection[],
-  deps: ExecutePipelineDeps
+  deps: ExecutePipelineDeps,
+  priorResults?: Map<string, TransformResult>
 ): Promise<TransformResult> {
   const transformNode = nodes.find((n) => n.id === transformNodeId)
   if (!transformNode || transformNode.type !== "transform") {
     return { status: "error", message: "Transform node not found.", durationMs: 0 }
   }
 
-  const incomingConn = connections.find((c) => c.targetId === transformNodeId)
-  if (!incomingConn) {
+  const incomingConns = connections.filter((c) => c.targetId === transformNodeId)
+  if (incomingConns.length === 0) {
     return { status: "error", message: "No source connected.", durationMs: 0 }
   }
 
-  const sourceNode = nodes.find((n) => n.id === incomingConn.sourceId)
-  if (!sourceNode) {
-    return { status: "error", message: "Source node not found.", durationMs: 0 }
+  // Resolve all inputs keyed by connection label
+  const input: Record<string, ResolvedInput> = {}
+  for (const conn of incomingConns) {
+    const sourceNode = nodes.find((n) => n.id === conn.sourceId)
+    if (!sourceNode) {
+      input[conn.label] = { text: "", type: "derived" as const }
+      continue
+    }
+    input[conn.label] = await resolveSourceContent(sourceNode, deps, priorResults)
   }
 
-  return executePipeline(transformNode, sourceNode, deps)
+  return deps.transformExecutor.execute(transformNode.transformCode, input, transformNode.timeoutMs)
 }

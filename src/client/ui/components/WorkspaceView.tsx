@@ -32,9 +32,13 @@ export function WorkspaceView() {
     handleTimeoutChange,
     handleZoomChange,
     handleDarkModeToggle,
+    handleAddTransformNode,
     handleAddChatNode,
     handleSendMessage,
+    handleUpdateConnectionLabel,
+    streamingNodeIds,
   } = useWorkspace({ getViewport })
+
 
   const { blobStorage, pdfRenderer, transformExecutor } = useAdapters()
   const pipelineDeps = useMemo(() => ({
@@ -53,6 +57,7 @@ export function WorkspaceView() {
     flowNodes,
     flowEdges,
     onNodesChange,
+    onEdgesChange,
     onNodeDragStop,
     onConnect,
     createAtCenter,
@@ -60,6 +65,7 @@ export function WorkspaceView() {
     nodes,
     connections,
     pipelineResults,
+    streamingNodeIds,
     onContentChange: handleContentChange,
     onDelete: handleDelete,
     onMove: handleMove,
@@ -74,6 +80,7 @@ export function WorkspaceView() {
     onCreatePipeline: handleCreatePipeline,
     onCreateConnection: handleCreateConnection,
     onRemoveConnection: handleRemoveConnection,
+    onUpdateConnectionLabel: handleUpdateConnectionLabel,
     getViewport,
   })
 
@@ -95,6 +102,7 @@ export function WorkspaceView() {
     <>
       <Toolbar
         onAddNode={() => createAtCenter(handleCreate)}
+        onAddTransform={() => createAtCenter(handleAddTransformNode)}
         onAddChat={() => createAtCenter(handleAddChatNode)}
         onUploadPdf={(file) => createAtCenter((pos) => onUploadPdf(file, pos))}
       />
@@ -102,6 +110,7 @@ export function WorkspaceView() {
         nodes={flowNodes}
         edges={flowEdges}
         onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
         onNodeDragStop={onNodeDragStop}
         onConnect={onConnect}
         initialViewport={initialViewport}

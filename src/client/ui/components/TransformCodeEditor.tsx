@@ -1,33 +1,30 @@
 "use client"
 
-import { useRef, useEffect, useCallback } from "react"
+import { useRef, useCallback, useEffect } from "react"
 import Editor, { type OnMount, type Monaco } from "@monaco-editor/react"
-import { MARKDOWN_INPUT_DEFS, PDF_INPUT_DEFS } from "./transform-input-types"
+import type { InputLegendEntry } from "@/kernel/entities"
+import { buildInputTypeDefs } from "./transform-input-types"
 
 type TransformCodeEditorProps = {
   value: string
-  sourceNodeType: "markdown" | "pdf"
+  inputLegend: InputLegendEntry[]
   onChange: (value: string) => void
   onClose: () => void
 }
 
-export function TransformCodeEditor({ value, sourceNodeType, onChange, onClose }: TransformCodeEditorProps) {
+export function TransformCodeEditor({ value, inputLegend, onChange, onClose }: TransformCodeEditorProps) {
   const onChangeRef = useRef(onChange)
   const onCloseRef = useRef(onClose)
   const monacoRef = useRef<Monaco | null>(null)
+  const libDisposableRef = useRef<{ dispose: () => void } | null>(null)
+  const libVersionRef = useRef(0)
   onChangeRef.current = onChange
   onCloseRef.current = onClose
 
   const handleMount: OnMount = useCallback((editor, monaco) => {
     monacoRef.current = monaco
 
-    // Inject input type definitions
-    const typeDefs = sourceNodeType === "pdf" ? PDF_INPUT_DEFS : MARKDOWN_INPUT_DEFS
-    monaco.languages.typescript.javascriptDefaults.setExtraLibs([
-      { content: typeDefs, filePath: "file:///input-types.d.ts" },
-    ])
-
-    // Configure JS defaults for a function body context
+    // Configure JS defaults
     monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
       target: monaco.languages.typescript.ScriptTarget.ESNext,
       allowNonTsExtensions: true,
@@ -35,22 +32,53 @@ export function TransformCodeEditor({ value, sourceNodeType, onChange, onClose }
       checkJs: true,
     })
 
+    monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+      noSemanticValidation: false,
+      noSyntaxValidation: false,
+      diagnosticCodesToIgnore: [1108], // "A 'return' statement can only be used within a function body" — our code IS a function body at runtime
+    })
+
+    // Inject type definitions with versioned path to force re-resolution
+    const typeDefs = buildInputTypeDefs(inputLegend)
+    const version = ++libVersionRef.current
+    libDisposableRef.current = monaco.languages.typescript.javascriptDefaults.addExtraLib(
+      typeDefs,
+      `file:///input-types-${version}.d.ts`
+    )
+
     // Escape to close
     editor.addCommand(monaco.KeyCode.Escape, () => {
       onCloseRef.current()
     })
 
     editor.focus()
-  }, [sourceNodeType])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  // Update extra libs when source type changes after initial mount
+  // Update type definitions when input legend changes
   useEffect(() => {
-    if (!monacoRef.current) return
-    const typeDefs = sourceNodeType === "pdf" ? PDF_INPUT_DEFS : MARKDOWN_INPUT_DEFS
-    monacoRef.current.languages.typescript.javascriptDefaults.setExtraLibs([
-      { content: typeDefs, filePath: "file:///input-types.d.ts" },
-    ])
-  }, [sourceNodeType])
+    const monaco = monacoRef.current
+    if (!monaco) return
+
+    // Dispose previous lib
+    libDisposableRef.current?.dispose()
+
+    // Add updated lib with new path to force Monaco to re-resolve
+    const typeDefs = buildInputTypeDefs(inputLegend)
+    const version = ++libVersionRef.current
+    libDisposableRef.current = monaco.languages.typescript.javascriptDefaults.addExtraLib(
+      typeDefs,
+      `file:///input-types-${version}.d.ts`
+    )
+  }, [inputLegend])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      libDisposableRef.current?.dispose()
+      libDisposableRef.current = null
+    }
+  }, [])
 
   return (
     <div

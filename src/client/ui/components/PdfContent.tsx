@@ -29,7 +29,7 @@ type PdfContentProps = {
   onDarkModeToggle: () => void
   onAnnotationCreate: (page: number, region: PdfRegion, label: string, text: string) => void
   onAnnotationDelete: (annotationId: string) => void
-  onAnnotationEdit: (annotationId: string, label: string) => void
+  onAnnotationEdit: (annotationId: string, label: string, region?: PdfRegion) => void
 }
 
 export function PdfContent({
@@ -61,6 +61,7 @@ export function PdfContent({
   const [textItems, setTextItems] = useState<PdfTextItem[]>([])
   const [pageDims, setPageDims] = useState<{ width: number; height: number } | null>(null)
   const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(null)
+  const [editingRegionScreen, setEditingRegionScreen] = useState<{ x: number; y: number; width: number; height: number } | null>(null)
 
   const { totalMatches, currentMatchIndex, isSearching, nextMatch, prevMatch } = usePdfSearch({
     doc,
@@ -168,22 +169,95 @@ export function PdfContent({
     return () => window.removeEventListener("keydown", handler)
   }, [resizingRect, confirmRect, cancelLabel])
 
-  // Editing existing annotation
+  // Editing existing annotation — supports both label and region editing
   const editingAnnotation = editingAnnotationId ? pageAnnotations.find((a) => a.id === editingAnnotationId) : null
+
+  // Initialize editing region in screen coords when editing starts
+  useEffect(() => {
+    if (editingAnnotation && pageDims && renderScale > 0) {
+      setEditingRegionScreen(pdfToScreen(editingAnnotation.region, renderScale, pageDims.height))
+    } else {
+      setEditingRegionScreen(null)
+    }
+  }, [editingAnnotationId]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const editPosition = useMemo(() => {
-    if (!editingAnnotation || !pageDims || renderScale === 0) return null
-    const screen = pdfToScreen(editingAnnotation.region, renderScale, pageDims.height)
-    return { x: screen.x, y: screen.y + screen.height }
-  }, [editingAnnotation, pageDims, renderScale])
+    if (!editingRegionScreen) return null
+    return { x: editingRegionScreen.x, y: editingRegionScreen.y + editingRegionScreen.height }
+  }, [editingRegionScreen])
+
+  // Grip resize for editing — reuse the same grip handler pattern
+  const handleEditGripResize = useCallback(
+    (gripId: string, e: React.PointerEvent) => {
+      if (!editingRegionScreen) return
+      e.stopPropagation()
+      e.preventDefault()
+
+      const svg = (e.currentTarget as SVGElement).ownerSVGElement ?? (e.currentTarget as SVGSVGElement)
+      svg.setPointerCapture?.(e.pointerId)
+
+      const startLocal = (() => {
+        if (svg.createSVGPoint) {
+          try {
+            const pt = svg.createSVGPoint()
+            pt.x = e.clientX; pt.y = e.clientY
+            const ctm = svg.getScreenCTM()
+            if (ctm) { const s = pt.matrixTransform(ctm.inverse()); return { x: s.x, y: s.y } }
+          } catch { /* fall through */ }
+        }
+        const r = svg.getBoundingClientRect()
+        return { x: e.clientX - r.left, y: e.clientY - r.top }
+      })()
+
+      const startRect = { ...editingRegionScreen }
+
+      const onMove = (me: PointerEvent) => {
+        let local: { x: number; y: number }
+        if (svg.createSVGPoint) {
+          try {
+            const pt = svg.createSVGPoint()
+            pt.x = me.clientX; pt.y = me.clientY
+            const ctm = svg.getScreenCTM()
+            if (ctm) { const s = pt.matrixTransform(ctm.inverse()); local = { x: s.x, y: s.y } }
+            else { const r = svg.getBoundingClientRect(); local = { x: me.clientX - r.left, y: me.clientY - r.top } }
+          } catch { const r = svg.getBoundingClientRect(); local = { x: me.clientX - r.left, y: me.clientY - r.top } }
+        } else {
+          const r = svg.getBoundingClientRect(); local = { x: me.clientX - r.left, y: me.clientY - r.top }
+        }
+        const dx = local!.x - startLocal.x
+        const dy = local!.y - startLocal.y
+        const nr = { ...startRect }
+        if (gripId.includes("w")) { nr.x += dx; nr.width -= dx }
+        if (gripId.includes("e")) { nr.width += dx }
+        if (gripId.includes("n")) { nr.y += dy; nr.height -= dy }
+        if (gripId.includes("s")) { nr.height += dy }
+        nr.width = Math.max(nr.width, 10)
+        nr.height = Math.max(nr.height, 10)
+        setEditingRegionScreen(nr)
+      }
+
+      const onUp = () => {
+        document.removeEventListener("pointermove", onMove)
+        document.removeEventListener("pointerup", onUp)
+      }
+
+      document.addEventListener("pointermove", onMove)
+      document.addEventListener("pointerup", onUp)
+    },
+    [editingRegionScreen]
+  )
 
   const handleEditConfirm = useCallback(
     (label: string) => {
-      if (editingAnnotationId) {
-        onAnnotationEdit(editingAnnotationId, label)
-        setEditingAnnotationId(null)
-      }
+      if (!editingAnnotationId || !pageDims || renderScale === 0) return
+      const region = editingRegionScreen
+        ? screenToPdf(editingRegionScreen, renderScale, pageDims.height)
+        : undefined
+      onAnnotationEdit(editingAnnotationId, label, region)
+      setEditingAnnotationId(null)
+      setEditingRegionScreen(null)
     },
-    [editingAnnotationId, onAnnotationEdit]
+    [editingAnnotationId, editingRegionScreen, pageDims, renderScale, onAnnotationEdit]
   )
 
   const handleTocNavigate = useCallback(
@@ -306,9 +380,12 @@ export function PdfContent({
             drawMode={annotateMode}
             drawingRect={drawingRect}
             resizingRect={resizingRect}
+            editingRect={editingRegionScreen}
+            editingAnnotationId={editingAnnotationId}
             onDelete={onAnnotationDelete}
             onEdit={(id) => { cancelLabel(); setEditingAnnotationId(id) }}
             onStartGripResize={startGripResize}
+            onEditGripResize={handleEditGripResize}
             onConfirmRect={confirmRect}
             drawHandlers={annotateMode ? handlers : undefined}
           />
@@ -325,10 +402,10 @@ export function PdfContent({
         )}
 
         {/* Edit label input — shown when clicking an annotation label */}
-        {editPosition && editingAnnotation && pageDims && (
+        {editPosition && editingAnnotation && (
           <PdfAnnotationLabelInput
             position={editPosition}
-            width={editingAnnotation.region.width * renderScale}
+            width={editingRegionScreen?.width}
             initialValue={editingAnnotation.label}
             onConfirm={handleEditConfirm}
             onCancel={() => setEditingAnnotationId(null)}

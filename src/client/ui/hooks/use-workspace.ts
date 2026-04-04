@@ -19,6 +19,7 @@ import { updateConnectionLabel } from "@/kernel/transforms/update-connection-lab
 import { createAnnotation } from "@/kernel/transforms/create-annotation"
 import { deleteAnnotation } from "@/kernel/transforms/delete-annotation"
 import { updateAnnotationLabel } from "@/kernel/transforms/update-annotation-label"
+import { updateAnnotationRegion } from "@/kernel/transforms/update-annotation-region"
 import { createChatNode } from "@/kernel/transforms/create-chat-node"
 import { updateChatModel } from "@/kernel/transforms/update-chat-model"
 import { removeNodeWithCleanup } from "@/client/domain/use-cases/remove-node-with-cleanup"
@@ -303,9 +304,10 @@ export function useWorkspace({ getViewport }: UseWorkspaceArgs) {
   )
 
   const handleAnnotationEdit = useCallback(
-    (nodeId: string, annotationId: string, label: string) => {
+    (nodeId: string, annotationId: string, label: string, region?: PdfRegion) => {
       setNodes((prev) => {
-        const updated = updateAnnotationLabel(prev, nodeId, annotationId, label)
+        let updated = updateAnnotationLabel(prev, nodeId, annotationId, label)
+        if (region) updated = updateAnnotationRegion(updated, nodeId, annotationId, region)
         scheduleSave(updated)
         return updated
       })

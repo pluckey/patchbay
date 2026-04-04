@@ -47,7 +47,7 @@ function PdfNodeInner({ data }: NodeProps) {
           onDarkModeToggle={() => onDarkModeToggle(nodeId)}
           onAnnotationCreate={(page, region, label, text) => onAnnotationCreate(nodeId, page, region, label, text)}
           onAnnotationDelete={(annotationId) => onAnnotationDelete(nodeId, annotationId)}
-          onAnnotationEdit={(annotationId, label) => onAnnotationEdit(nodeId, annotationId, label)}
+          onAnnotationEdit={(annotationId, label, region) => onAnnotationEdit(nodeId, annotationId, label, region)}
         />
       </Suspense>
     </NodeShell>

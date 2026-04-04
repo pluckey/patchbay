@@ -5,22 +5,67 @@ import { useState, useRef, useCallback } from "react"
 type DrawState =
   | { phase: "idle" }
   | { phase: "drawing"; startX: number; startY: number }
-  | { phase: "labeling"; rect: { x: number; y: number; width: number; height: number } }
+  | { phase: "resizing"; rect: Rect; grip: GripId | null; gripStart: { x: number; y: number } | null }
+  | { phase: "labeling"; rect: Rect }
 
 type Rect = { x: number; y: number; width: number; height: number }
 
+type GripId = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w"
+
 const MIN_DRAG_THRESHOLD = 10
+const MIN_RECT_SIZE = 10
 
 function normalizeRect(startX: number, startY: number, endX: number, endY: number): Rect {
-  const x = Math.min(startX, endX)
-  const y = Math.min(startY, endY)
-  const width = Math.abs(endX - startX)
-  const height = Math.abs(endY - startY)
-  return { x, y, width, height }
+  return {
+    x: Math.min(startX, endX),
+    y: Math.min(startY, endY),
+    width: Math.abs(endX - startX),
+    height: Math.abs(endY - startY),
+  }
+}
+
+function clampRect(rect: Rect): Rect {
+  return {
+    x: rect.x,
+    y: rect.y,
+    width: Math.max(rect.width, MIN_RECT_SIZE),
+    height: Math.max(rect.height, MIN_RECT_SIZE),
+  }
+}
+
+function resizeByGrip(rect: Rect, grip: GripId, dx: number, dy: number): Rect {
+  const r = { ...rect }
+  if (grip.includes("w")) { r.x += dx; r.width -= dx }
+  if (grip.includes("e")) { r.width += dx }
+  if (grip.includes("n")) { r.y += dy; r.height -= dy }
+  if (grip.includes("s")) { r.height += dy }
+  return clampRect(r)
+}
+
+/** Convert viewport clientX/clientY to SVG-local coordinates using SVG's own coordinate transform */
+function toLocal(e: React.PointerEvent, svgOverride?: SVGSVGElement): { x: number; y: number } {
+  const el = svgOverride ?? e.currentTarget as SVGSVGElement
+  const svg = 'ownerSVGElement' in el && el.ownerSVGElement ? el.ownerSVGElement : el as SVGSVGElement
+  if (svg.createSVGPoint) {
+    try {
+      const pt = svg.createSVGPoint()
+      pt.x = e.clientX
+      pt.y = e.clientY
+      const ctm = svg.getScreenCTM()
+      if (ctm) {
+        const svgPt = pt.matrixTransform(ctm.inverse())
+        return { x: svgPt.x, y: svgPt.y }
+      }
+    } catch {
+      // Singular matrix — fall through
+    }
+  }
+  const rect = svg.getBoundingClientRect()
+  return { x: e.clientX - rect.left, y: e.clientY - rect.top }
 }
 
 export function usePdfAnnotationDraw(
-  onComplete: (screenRect: Rect, label: string) => void
+  onComplete: (localRect: Rect, label: string) => void
 ) {
   const [annotateMode, setAnnotateMode] = useState(false)
   const [drawState, setDrawState] = useState<DrawState>({ phase: "idle" })
@@ -31,7 +76,6 @@ export function usePdfAnnotationDraw(
   const toggleAnnotateMode = useCallback(() => {
     setAnnotateMode((prev) => {
       if (prev) {
-        // Turning off — reset everything
         setDrawState({ phase: "idle" })
         setDrawingRect(null)
         currentMouseRef.current = null
@@ -43,54 +87,83 @@ export function usePdfAnnotationDraw(
   const onPointerDown = useCallback(
     (e: React.PointerEvent) => {
       if (!annotateMode) return
-      if (drawState.phase !== "idle") return
+      e.stopPropagation()
+      const local = toLocal(e)
 
-      const startX = e.clientX
-      const startY = e.clientY
-      currentMouseRef.current = { x: startX, y: startY }
-      setDrawState({ phase: "drawing", startX, startY })
-      setDrawingRect(null)
-      ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
+      if (drawState.phase === "idle") {
+        currentMouseRef.current = local
+        setDrawState({ phase: "drawing", startX: local.x, startY: local.y })
+        setDrawingRect(null)
+        ;(e.currentTarget as Element).setPointerCapture?.(e.pointerId)
+      }
     },
     [annotateMode, drawState.phase]
   )
 
   const onPointerMove = useCallback(
     (e: React.PointerEvent) => {
-      if (drawState.phase !== "drawing") return
+      e.stopPropagation()
+      const local = toLocal(e)
 
-      const endX = e.clientX
-      const endY = e.clientY
-      currentMouseRef.current = { x: endX, y: endY }
-
-      const rect = normalizeRect(drawState.startX, drawState.startY, endX, endY)
-      setDrawingRect(rect)
+      if (drawState.phase === "drawing") {
+        currentMouseRef.current = local
+        setDrawingRect(normalizeRect(drawState.startX, drawState.startY, local.x, local.y))
+      } else if (drawState.phase === "resizing" && drawState.grip && drawState.gripStart) {
+        const dx = local.x - drawState.gripStart.x
+        const dy = local.y - drawState.gripStart.y
+        const newRect = resizeByGrip(drawState.rect, drawState.grip, dx, dy)
+        setDrawState({ ...drawState, rect: newRect, gripStart: local })
+      }
     },
     [drawState]
   )
 
   const onPointerUp = useCallback(
     (e: React.PointerEvent) => {
-      if (drawState.phase !== "drawing") return
+      e.stopPropagation()
+      const local = toLocal(e)
 
-      const endX = e.clientX
-      const endY = e.clientY
-      const rect = normalizeRect(drawState.startX, drawState.startY, endX, endY)
-
-      // Check minimum drag threshold
-      if (rect.width < MIN_DRAG_THRESHOLD && rect.height < MIN_DRAG_THRESHOLD) {
-        setDrawState({ phase: "idle" })
+      if (drawState.phase === "drawing") {
+        const rect = normalizeRect(drawState.startX, drawState.startY, local.x, local.y)
+        if (rect.width < MIN_DRAG_THRESHOLD && rect.height < MIN_DRAG_THRESHOLD) {
+          setDrawState({ phase: "idle" })
+          setDrawingRect(null)
+          currentMouseRef.current = null
+          return
+        }
+        // Transition to resizing phase — user can adjust grips before labeling
         setDrawingRect(null)
+        setDrawState({ phase: "resizing", rect, grip: null, gripStart: null })
         currentMouseRef.current = null
-        return
+      } else if (drawState.phase === "resizing" && drawState.grip) {
+        // Finished grip drag — stay in resizing
+        setDrawState({ ...drawState, grip: null, gripStart: null })
       }
-
-      setDrawingRect(null)
-      setDrawState({ phase: "labeling", rect })
-      currentMouseRef.current = null
     },
     [drawState]
   )
+
+  // Called by grip elements in the annotation layer
+  const startGripResize = useCallback(
+    (gripId: GripId, e: React.PointerEvent) => {
+      if (drawState.phase !== "resizing") return
+      e.stopPropagation()
+      e.preventDefault()
+      const local = toLocal(e)
+      setDrawState({ ...drawState, grip: gripId, gripStart: local })
+      // Capture on the parent SVG so move/up handlers fire correctly
+      const el = e.currentTarget as SVGElement
+      const svg = el.ownerSVGElement ?? el
+      svg.setPointerCapture?.(e.pointerId)
+    },
+    [drawState]
+  )
+
+  // Confirm the rect and move to labeling
+  const confirmRect = useCallback(() => {
+    if (drawState.phase !== "resizing") return
+    setDrawState({ phase: "labeling", rect: drawState.rect })
+  }, [drawState])
 
   const confirmLabel = useCallback(
     (label: string) => {
@@ -106,15 +179,23 @@ export function usePdfAnnotationDraw(
   }, [])
 
   const pendingRect = drawState.phase === "labeling" ? drawState.rect : null
+  const resizingRect = drawState.phase === "resizing" ? drawState.rect : null
+  const activeGrip = drawState.phase === "resizing" ? drawState.grip : null
 
   return {
     annotateMode,
     toggleAnnotateMode,
     drawState,
     drawingRect,
+    resizingRect,
+    activeGrip,
     handlers: { onPointerDown, onPointerMove, onPointerUp },
+    startGripResize,
+    confirmRect,
     confirmLabel,
     cancelLabel,
     pendingRect,
   }
 }
+
+export type { GripId, Rect }

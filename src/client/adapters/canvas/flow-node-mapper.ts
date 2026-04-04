@@ -23,6 +23,7 @@ export type PdfFlowNodeData = {
   onDarkModeToggle: (nodeId: string) => void
   onAnnotationCreate: (nodeId: string, page: number, region: PdfRegion, label: string, text: string) => void
   onAnnotationDelete: (nodeId: string, annotationId: string) => void
+  onAnnotationEdit: (nodeId: string, annotationId: string, label: string) => void
   onDelete: (nodeId: string) => void
   onResizeEnd: (nodeId: string, dimensions: { width: number; height: number }) => void
 }
@@ -74,6 +75,7 @@ type FlowCallbacks = {
   onModelChange: (nodeId: string, provider: string, model: string) => void
   onAnnotationCreate: (nodeId: string, page: number, region: PdfRegion, label: string, text: string) => void
   onAnnotationDelete: (nodeId: string, annotationId: string) => void
+  onAnnotationEdit: (nodeId: string, annotationId: string, label: string) => void
 }
 
 export function toFlowNodes(
@@ -124,6 +126,7 @@ export function toFlowNodes(
             onDarkModeToggle: callbacks.onDarkModeToggle,
             onAnnotationCreate: callbacks.onAnnotationCreate,
             onAnnotationDelete: callbacks.onAnnotationDelete,
+            onAnnotationEdit: callbacks.onAnnotationEdit,
             onDelete: callbacks.onDelete,
             onResizeEnd: callbacks.onResizeEnd,
           } satisfies PdfFlowNodeData,

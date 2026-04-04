@@ -31,6 +31,7 @@ type UseCanvasBindingArgs = {
   onModelChange: (nodeId: string, provider: string, model: string) => void
   onAnnotationCreate: (nodeId: string, page: number, region: PdfRegion, label: string, text: string) => void
   onAnnotationDelete: (nodeId: string, annotationId: string) => void
+  onAnnotationEdit: (nodeId: string, annotationId: string, label: string) => void
   roster: ModelRosterEntry[]
   onCreateConnection: (sourceId: string, targetId: string) => boolean
   onRemoveConnection: (connectionId: string) => void
@@ -58,6 +59,7 @@ export function useCanvasBinding({
   onModelChange,
   onAnnotationCreate,
   onAnnotationDelete,
+  onAnnotationEdit,
   roster,
   onCreateConnection,
   onRemoveConnection,
@@ -88,8 +90,9 @@ export function useCanvasBinding({
       onModelChange,
       onAnnotationCreate,
       onAnnotationDelete,
+      onAnnotationEdit,
     }, pipelineResults, chatSystemPrompts, streamingNodeIds, roster))
-  }, [nodes, connections, pipelineResults, chatSystemPrompts, streamingNodeIds, onContentChange, onDelete, onResize, onNavigatePage, onZoomChange, onDarkModeToggle, onTransformCodeChange, onTimeoutChange, onRerun, onSendMessage, onResetChat, onModelChange, onAnnotationCreate, onAnnotationDelete, roster])
+  }, [nodes, connections, pipelineResults, chatSystemPrompts, streamingNodeIds, onContentChange, onDelete, onResize, onNavigatePage, onZoomChange, onDarkModeToggle, onTransformCodeChange, onTimeoutChange, onRerun, onSendMessage, onResetChat, onModelChange, onAnnotationCreate, onAnnotationDelete, onAnnotationEdit, roster])
 
   // Sync domain connections → flow edges
   const [flowEdges, setFlowEdges] = useState<Edge[]>([])

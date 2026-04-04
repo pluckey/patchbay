@@ -18,6 +18,7 @@ import { updateTransformTimeout } from "@/kernel/transforms/update-transform-tim
 import { updateConnectionLabel } from "@/kernel/transforms/update-connection-label"
 import { createAnnotation } from "@/kernel/transforms/create-annotation"
 import { deleteAnnotation } from "@/kernel/transforms/delete-annotation"
+import { updateAnnotationLabel } from "@/kernel/transforms/update-annotation-label"
 import { createChatNode } from "@/kernel/transforms/create-chat-node"
 import { updateChatModel } from "@/kernel/transforms/update-chat-model"
 import { removeNodeWithCleanup } from "@/client/domain/use-cases/remove-node-with-cleanup"
@@ -301,6 +302,17 @@ export function useWorkspace({ getViewport }: UseWorkspaceArgs) {
     [setNodes, scheduleSave]
   )
 
+  const handleAnnotationEdit = useCallback(
+    (nodeId: string, annotationId: string, label: string) => {
+      setNodes((prev) => {
+        const updated = updateAnnotationLabel(prev, nodeId, annotationId, label)
+        scheduleSave(updated)
+        return updated
+      })
+    },
+    [setNodes, scheduleSave]
+  )
+
   const handleUpdateConnectionLabel = useCallback(
     (connectionId: string, label: string) => {
       setConnections((prev) => {
@@ -337,6 +349,7 @@ export function useWorkspace({ getViewport }: UseWorkspaceArgs) {
     handleModelChange,
     handleAnnotationCreate,
     handleAnnotationDelete,
+    handleAnnotationEdit,
     handleUpdateConnectionLabel,
     streamingNodeIds,
     roster,

@@ -13,7 +13,7 @@ function PdfNodeInner({ data }: NodeProps) {
   const {
     nodeId, blobId, filename, currentPage, totalPages, zoomLevel, darkMode,
     annotations, onNavigatePage, onZoomChange, onDarkModeToggle,
-    onAnnotationCreate, onAnnotationDelete, onDelete, onResizeEnd,
+    onAnnotationCreate, onAnnotationDelete, onAnnotationEdit, onDelete, onResizeEnd,
   } = data as unknown as PdfFlowNodeData
 
   return (
@@ -47,6 +47,7 @@ function PdfNodeInner({ data }: NodeProps) {
           onDarkModeToggle={() => onDarkModeToggle(nodeId)}
           onAnnotationCreate={(page, region, label, text) => onAnnotationCreate(nodeId, page, region, label, text)}
           onAnnotationDelete={(annotationId) => onAnnotationDelete(nodeId, annotationId)}
+          onAnnotationEdit={(annotationId, label) => onAnnotationEdit(nodeId, annotationId, label)}
         />
       </Suspense>
     </NodeShell>

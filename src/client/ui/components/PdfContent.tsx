@@ -7,7 +7,7 @@ import { usePdfAnnotationDraw } from "@/client/ui/hooks/use-pdf-annotation-draw"
 import { useAdapters } from "@/client/ui/app/adapters-context"
 import type { PdfOutlineItem, PdfAnnotation, PdfTextItem, PdfRegion } from "@/kernel/entities"
 import { extractRegionText } from "@/kernel/transforms/extract-region-text"
-import { screenToPdf } from "./pdf-coordinates"
+import { screenToPdf, pdfToScreen } from "./pdf-coordinates"
 import { PdfSearchBar } from "./PdfSearchBar"
 import { PdfTableOfContents } from "./PdfTableOfContents"
 import { PdfPageNav } from "./PdfPageNav"
@@ -29,6 +29,7 @@ type PdfContentProps = {
   onDarkModeToggle: () => void
   onAnnotationCreate: (page: number, region: PdfRegion, label: string, text: string) => void
   onAnnotationDelete: (annotationId: string) => void
+  onAnnotationEdit: (annotationId: string, label: string) => void
 }
 
 export function PdfContent({
@@ -43,6 +44,7 @@ export function PdfContent({
   onDarkModeToggle,
   onAnnotationCreate,
   onAnnotationDelete,
+  onAnnotationEdit,
 }: PdfContentProps) {
   const { blobStorage, pdfRenderer } = useAdapters()
   const { status, doc, renderPage, preRenderAdjacent } = usePdfViewer({
@@ -58,6 +60,7 @@ export function PdfContent({
   const [searchQuery, setSearchQuery] = useState("")
   const [textItems, setTextItems] = useState<PdfTextItem[]>([])
   const [pageDims, setPageDims] = useState<{ width: number; height: number } | null>(null)
+  const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(null)
 
   const { totalMatches, currentMatchIndex, isSearching, nextMatch, prevMatch } = usePdfSearch({
     doc,
@@ -128,17 +131,11 @@ export function PdfContent({
     [annotations, currentPage]
   )
 
-  // Annotation draw hook
+  // Annotation draw hook — rects are SVG-local (element-relative coordinates)
   const handleAnnotationComplete = useCallback(
-    (screenRect: { x: number; y: number; width: number; height: number }, label: string) => {
+    (localRect: { x: number; y: number; width: number; height: number }, label: string) => {
       if (!pageDims || renderScale === 0) return
-      const topLeft = toHostRelative(screenRect.x, screenRect.y)
-      const relativeRect = {
-        ...topLeft,
-        width: screenRect.width,
-        height: screenRect.height,
-      }
-      const pdfRegion = screenToPdf(relativeRect, renderScale, pageDims.height)
+      const pdfRegion = screenToPdf(localRect, renderScale, pageDims.height)
       const text = extractRegionText(textItems, pdfRegion)
       onAnnotationCreate(currentPage, pdfRegion, label, text)
     },
@@ -147,34 +144,47 @@ export function PdfContent({
 
   const {
     annotateMode, toggleAnnotateMode,
-    drawingRect, handlers,
+    drawingRect, resizingRect, handlers,
+    startGripResize, confirmRect,
     confirmLabel, cancelLabel, pendingRect,
   } = usePdfAnnotationDraw(handleAnnotationComplete)
 
-  // Convert viewport coords to canvas-host content-relative (accounting for scroll + padding)
-  const toHostRelative = useCallback((viewportX: number, viewportY: number) => {
-    const host = canvasHostRef.current
-    if (!host) return { x: 0, y: 0 }
-    const hostRect = host.getBoundingClientRect()
-    const paddingLeft = parseFloat(getComputedStyle(host).paddingLeft)
-    const paddingTop = parseFloat(getComputedStyle(host).paddingTop)
-    return {
-      x: viewportX - hostRect.left - paddingLeft + host.scrollLeft,
-      y: viewportY - hostRect.top - paddingTop + host.scrollTop,
+  // Label input position — pendingRect is already SVG-local
+  const labelPosition = pendingRect ? { x: pendingRect.x, y: pendingRect.y + pendingRect.height } : null
+
+  // Mutual exclusion: only one label input at a time
+  useEffect(() => {
+    if (pendingRect && editingAnnotationId) setEditingAnnotationId(null)
+  }, [pendingRect, editingAnnotationId])
+
+  // Global keyboard shortcuts for resizing phase
+  useEffect(() => {
+    if (!resizingRect) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Enter") { e.preventDefault(); confirmRect() }
+      if (e.key === "Escape") { e.preventDefault(); cancelLabel() }
     }
-  }, [])
+    window.addEventListener("keydown", handler)
+    return () => window.removeEventListener("keydown", handler)
+  }, [resizingRect, confirmRect, cancelLabel])
 
-  const relativeDrawingRect = useMemo(() => {
-    if (!drawingRect || !canvasHostRef.current) return null
-    const topLeft = toHostRelative(drawingRect.x, drawingRect.y)
-    return { ...topLeft, width: drawingRect.width, height: drawingRect.height }
-  }, [drawingRect, toHostRelative])
+  // Editing existing annotation
+  const editingAnnotation = editingAnnotationId ? pageAnnotations.find((a) => a.id === editingAnnotationId) : null
+  const editPosition = useMemo(() => {
+    if (!editingAnnotation || !pageDims || renderScale === 0) return null
+    const screen = pdfToScreen(editingAnnotation.region, renderScale, pageDims.height)
+    return { x: screen.x, y: screen.y + screen.height }
+  }, [editingAnnotation, pageDims, renderScale])
 
-  const labelPosition = useMemo(() => {
-    if (!pendingRect || !canvasHostRef.current) return null
-    const bottomLeft = toHostRelative(pendingRect.x, pendingRect.y + pendingRect.height)
-    return bottomLeft
-  }, [pendingRect, toHostRelative])
+  const handleEditConfirm = useCallback(
+    (label: string) => {
+      if (editingAnnotationId) {
+        onAnnotationEdit(editingAnnotationId, label)
+        setEditingAnnotationId(null)
+      }
+    },
+    [editingAnnotationId, onAnnotationEdit]
+  )
 
   const handleTocNavigate = useCallback(
     (pageNumber: number) => {
@@ -294,18 +304,34 @@ export function PdfContent({
             scale={renderScale}
             pageHeight={pageDims.height}
             drawMode={annotateMode}
-            drawingRect={relativeDrawingRect}
+            drawingRect={drawingRect}
+            resizingRect={resizingRect}
             onDelete={onAnnotationDelete}
+            onEdit={(id) => { cancelLabel(); setEditingAnnotationId(id) }}
+            onStartGripResize={startGripResize}
+            onConfirmRect={confirmRect}
             drawHandlers={annotateMode ? handlers : undefined}
           />
         )}
 
         {/* Label input — shown after drawing completes */}
-        {labelPosition && (
+        {labelPosition && pendingRect && (
           <PdfAnnotationLabelInput
             position={labelPosition}
+            width={pendingRect.width}
             onConfirm={confirmLabel}
             onCancel={cancelLabel}
+          />
+        )}
+
+        {/* Edit label input — shown when clicking an annotation label */}
+        {editPosition && editingAnnotation && pageDims && (
+          <PdfAnnotationLabelInput
+            position={editPosition}
+            width={editingAnnotation.region.width * renderScale}
+            initialValue={editingAnnotation.label}
+            onConfirm={handleEditConfirm}
+            onCancel={() => setEditingAnnotationId(null)}
           />
         )}
       </div>

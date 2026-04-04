@@ -164,6 +164,11 @@ export function usePdfAnnotationDraw(
     setDrawState({ phase: "idle" })
   }, [])
 
+  // Allow external code to push into resizing mode (for editing existing annotations)
+  const enterResizing = useCallback((rect: Rect) => {
+    setDrawState({ phase: "resizing", rect, grip: null, gripStart: null })
+  }, [])
+
   const pendingRect = drawState.phase === "labeling" ? drawState.rect : null
   const resizingRect = drawState.phase === "resizing" ? drawState.rect : null
   const activeGrip = drawState.phase === "resizing" ? drawState.grip : null
@@ -180,6 +185,7 @@ export function usePdfAnnotationDraw(
     confirmRect,
     confirmLabel,
     cancelLabel,
+    enterResizing,
     pendingRect,
   }
 }

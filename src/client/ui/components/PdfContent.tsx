@@ -3,11 +3,11 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { usePdfViewer } from "@/client/ui/hooks/use-pdf-viewer"
 import { usePdfSearch } from "@/client/ui/hooks/use-pdf-search"
-import { usePdfAnnotationDraw, type GripId } from "@/client/ui/hooks/use-pdf-annotation-draw"
+import { usePdfAnnotationDraw } from "@/client/ui/hooks/use-pdf-annotation-draw"
 import { useAdapters } from "@/client/ui/app/adapters-context"
 import type { PdfOutlineItem, PdfAnnotation, PdfTextItem, PdfRegion } from "@/kernel/entities"
 import { extractRegionText } from "@/kernel/transforms/extract-region-text"
-import { screenToPdf, pdfToScreen, svgLocalCoords } from "./pdf-coordinates"
+import { screenToPdf, pdfToScreen } from "./pdf-coordinates"
 import { PdfSearchBar } from "./PdfSearchBar"
 import { PdfTableOfContents } from "./PdfTableOfContents"
 import { PdfPageNav } from "./PdfPageNav"
@@ -61,7 +61,6 @@ export function PdfContent({
   const [textItems, setTextItems] = useState<PdfTextItem[]>([])
   const [pageDims, setPageDims] = useState<{ width: number; height: number } | null>(null)
   const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(null)
-  const [editingRegionScreen, setEditingRegionScreen] = useState<{ x: number; y: number; width: number; height: number } | null>(null)
 
   const { totalMatches, currentMatchIndex, isSearching, nextMatch, prevMatch } = usePdfSearch({
     doc,
@@ -146,7 +145,7 @@ export function PdfContent({
   const {
     annotateMode, toggleAnnotateMode,
     drawingRect, resizingRect, handlers,
-    startGripResize, confirmRect,
+    startGripResize, confirmRect, enterResizing,
     confirmLabel, cancelLabel, pendingRect,
   } = usePdfAnnotationDraw(handleAnnotationComplete)
 
@@ -169,93 +168,36 @@ export function PdfContent({
     return () => window.removeEventListener("keydown", handler)
   }, [resizingRect, confirmRect, cancelLabel])
 
-  // Editing existing annotation — supports both label and region editing
+  // Editing existing annotation — reuses the draw hook's resizing mode
   const editingAnnotation = editingAnnotationId ? pageAnnotations.find((a) => a.id === editingAnnotationId) : null
 
-  // Start editing: initialize screen rect imperatively (Fix #5 — no eslint-disable needed)
+  // Start editing: push the annotation's screen rect into the draw hook's resizing phase
   const startEditing = useCallback((id: string) => {
     cancelLabel()
     const ann = pageAnnotations.find((a) => a.id === id)
     if (ann && pageDims && renderScale > 0) {
-      setEditingRegionScreen(pdfToScreen(ann.region, renderScale, pageDims.height))
+      enterResizing(pdfToScreen(ann.region, renderScale, pageDims.height))
     }
     setEditingAnnotationId(id)
-  }, [pageAnnotations, pageDims, renderScale, cancelLabel])
+  }, [pageAnnotations, pageDims, renderScale, cancelLabel, enterResizing])
 
+  // When editing, the resizingRect from the draw hook IS the editing region
   const editPosition = useMemo(() => {
-    if (!editingRegionScreen) return null
-    return { x: editingRegionScreen.x, y: editingRegionScreen.y + editingRegionScreen.height }
-  }, [editingRegionScreen])
-
-  // Edit grip resize — uses ref + document listeners with unmount cleanup
-  const editDragCleanupRef = useRef<(() => void) | null>(null)
-
-  // Cleanup on unmount or when editing ends
-  useEffect(() => {
-    if (!editingAnnotationId) {
-      editDragCleanupRef.current?.()
-      editDragCleanupRef.current = null
-    }
-    return () => {
-      editDragCleanupRef.current?.()
-      editDragCleanupRef.current = null
-    }
-  }, [editingAnnotationId])
-
-  const editingRegionRef = useRef(editingRegionScreen)
-  editingRegionRef.current = editingRegionScreen
-
-  const handleEditGripResize = useCallback(
-    (gripId: GripId, e: React.PointerEvent) => {
-      if (!editingRegionRef.current) return
-      e.stopPropagation()
-      e.preventDefault()
-
-      const el = e.currentTarget as SVGElement
-      const svg = el.ownerSVGElement ?? el as unknown as SVGSVGElement
-      const startLocal = svgLocalCoords(svg, e.clientX, e.clientY)
-      const startRect = { ...editingRegionRef.current }
-
-      const onMove = (me: PointerEvent) => {
-        const local = svgLocalCoords(svg, me.clientX, me.clientY)
-        const dx = local.x - startLocal.x
-        const dy = local.y - startLocal.y
-        const nr = { ...startRect }
-        if (gripId.includes("w")) { nr.x += dx; nr.width -= dx }
-        if (gripId.includes("e")) { nr.width += dx }
-        if (gripId.includes("n")) { nr.y += dy; nr.height -= dy }
-        if (gripId.includes("s")) { nr.height += dy }
-        nr.width = Math.max(nr.width, 10)
-        nr.height = Math.max(nr.height, 10)
-        setEditingRegionScreen(nr)
-      }
-
-      const cleanup = () => {
-        document.removeEventListener("pointermove", onMove)
-        document.removeEventListener("pointerup", onUp)
-        editDragCleanupRef.current = null
-      }
-
-      const onUp = () => cleanup()
-
-      document.addEventListener("pointermove", onMove)
-      document.addEventListener("pointerup", onUp)
-      editDragCleanupRef.current = cleanup
-    },
-    []
-  )
+    if (!editingAnnotationId || !resizingRect) return null
+    return { x: resizingRect.x, y: resizingRect.y + resizingRect.height }
+  }, [editingAnnotationId, resizingRect])
 
   const handleEditConfirm = useCallback(
     (label: string) => {
       if (!editingAnnotationId || !pageDims || renderScale === 0) return
-      const region = editingRegionScreen
-        ? screenToPdf(editingRegionScreen, renderScale, pageDims.height)
+      const region = resizingRect
+        ? screenToPdf(resizingRect, renderScale, pageDims.height)
         : undefined
       onAnnotationEdit(editingAnnotationId, label, region)
       setEditingAnnotationId(null)
-      setEditingRegionScreen(null)
+      cancelLabel() // reset draw hook to idle
     },
-    [editingAnnotationId, editingRegionScreen, pageDims, renderScale, onAnnotationEdit]
+    [editingAnnotationId, resizingRect, pageDims, renderScale, onAnnotationEdit, cancelLabel]
   )
 
   const handleTocNavigate = useCallback(
@@ -372,19 +314,16 @@ export function PdfContent({
         {/* Annotation layer — SVG overlay for annotations + drawing */}
         {pageDims && (
           <PdfAnnotationLayer
-            annotations={pageAnnotations}
+            annotations={editingAnnotationId ? pageAnnotations.filter(a => a.id !== editingAnnotationId) : pageAnnotations}
             scale={renderScale}
             pageHeight={pageDims.height}
             drawMode={annotateMode}
             drawingRect={drawingRect}
             resizingRect={resizingRect}
-            editingRect={editingRegionScreen}
-            editingAnnotationId={editingAnnotationId}
             onDelete={onAnnotationDelete}
             onEdit={startEditing}
             onStartGripResize={startGripResize}
-            onEditGripResize={handleEditGripResize}
-            onConfirmRect={confirmRect}
+            onConfirmRect={editingAnnotationId ? undefined : confirmRect}
             drawHandlers={annotateMode ? handlers : undefined}
           />
         )}
@@ -403,7 +342,7 @@ export function PdfContent({
         {editPosition && editingAnnotation && (
           <PdfAnnotationLabelInput
             position={editPosition}
-            width={editingRegionScreen?.width}
+            width={resizingRect?.width}
             initialValue={editingAnnotation.label}
             onConfirm={handleEditConfirm}
             onCancel={() => setEditingAnnotationId(null)}

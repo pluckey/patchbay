@@ -14,12 +14,9 @@ type PdfAnnotationLayerProps = {
   drawMode: boolean
   drawingRect: Rect | null
   resizingRect: Rect | null
-  editingRect: Rect | null
-  editingAnnotationId: string | null
   onDelete: (annotationId: string) => void
   onEdit: (annotationId: string) => void
   onStartGripResize?: (gripId: GripId, e: React.PointerEvent) => void
-  onEditGripResize?: (gripId: GripId, e: React.PointerEvent) => void
   onConfirmRect?: () => void
   drawHandlers?: {
     onPointerDown: (e: React.PointerEvent) => void
@@ -48,12 +45,9 @@ export function PdfAnnotationLayer({
   drawMode,
   drawingRect,
   resizingRect,
-  editingRect,
-  editingAnnotationId,
   onDelete,
   onEdit,
   onStartGripResize,
-  onEditGripResize,
   onConfirmRect,
   drawHandlers,
 }: PdfAnnotationLayerProps) {
@@ -115,8 +109,7 @@ export function PdfAnnotationLayer({
       } : {})}
     >
       {annotations.map((annotation) => {
-        const isEditing = annotation.id === editingAnnotationId
-        const rect = isEditing && editingRect ? editingRect : pdfToScreen(annotation.region, scale, pageHeight)
+        const rect = pdfToScreen(annotation.region, scale, pageHeight)
         const isHovered = hoveredId === annotation.id
 
         return (
@@ -204,28 +197,6 @@ export function PdfAnnotationLayer({
               </g>
             )}
 
-            {/* Grips for editing existing annotation */}
-            {isEditing && editingRect && GRIP_POSITIONS.map(({ id, getPos, cursor }) => {
-              const { cx, cy } = getPos(rect)
-              return (
-                <g key={`edit-grip-${id}`}>
-                  <rect
-                    x={cx - GRIP_HIT_SIZE / 2} y={cy - GRIP_HIT_SIZE / 2}
-                    width={GRIP_HIT_SIZE} height={GRIP_HIT_SIZE}
-                    fill="transparent"
-                    style={{ cursor, pointerEvents: "all" }}
-                    onPointerDown={(e) => onEditGripResize?.(id, e)}
-                  />
-                  <rect
-                    x={cx - GRIP_SIZE / 2} y={cy - GRIP_SIZE / 2}
-                    width={GRIP_SIZE} height={GRIP_SIZE}
-                    rx={2} fill="currentColor" stroke="currentColor" strokeWidth={1.5}
-                    className="fill-indicator text-indicator-foreground"
-                    style={{ cursor, pointerEvents: "none" }}
-                  />
-                </g>
-              )
-            })}
           </g>
         )
       })}

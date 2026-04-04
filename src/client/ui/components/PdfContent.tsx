@@ -317,14 +317,14 @@ export function PdfContent({
             annotations={editingAnnotationId ? pageAnnotations.filter(a => a.id !== editingAnnotationId) : pageAnnotations}
             scale={renderScale}
             pageHeight={pageDims.height}
-            drawMode={annotateMode}
+            drawMode={annotateMode || !!resizingRect}
             drawingRect={drawingRect}
             resizingRect={resizingRect}
             onDelete={onAnnotationDelete}
             onEdit={startEditing}
             onStartGripResize={startGripResize}
             onConfirmRect={editingAnnotationId ? undefined : confirmRect}
-            drawHandlers={annotateMode ? handlers : undefined}
+            drawHandlers={(annotateMode || !!resizingRect) ? handlers : undefined}
           />
         )}
 

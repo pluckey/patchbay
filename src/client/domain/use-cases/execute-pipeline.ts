@@ -51,6 +51,12 @@ async function resolveSourceContent(
         currentPage: sourceNode.currentPage,
         totalPages: sourceNode.totalPages,
         filename: sourceNode.filename,
+        annotations: sourceNode.annotations.map((a) => ({
+          label: a.label,
+          page: a.page,
+          region: a.region,
+          text: a.text,
+        })),
       }
     } finally {
       await doc.destroy()

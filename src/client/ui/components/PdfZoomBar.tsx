@@ -5,8 +5,10 @@ import { Button } from "@/client/ui/components/ui/button"
 type PdfZoomBarProps = {
   zoomLevel: number
   darkMode: boolean
+  annotateMode?: boolean
   onZoomChange: (zoomLevel: number) => void
   onDarkModeToggle: () => void
+  onToggleAnnotate?: () => void
   onFitToWidth: () => void
   onFitToPage: () => void
 }
@@ -18,8 +20,10 @@ const ZOOM_MAX = 4.0
 export function PdfZoomBar({
   zoomLevel,
   darkMode,
+  annotateMode = false,
   onZoomChange,
   onDarkModeToggle,
+  onToggleAnnotate,
   onFitToWidth,
   onFitToPage,
 }: PdfZoomBarProps) {
@@ -44,6 +48,17 @@ export function PdfZoomBar({
         ⊡
       </Button>
       <div className="flex-1" />
+      {onToggleAnnotate && (
+        <Button
+          variant={annotateMode ? "secondary" : "ghost"}
+          size="icon-xs"
+          onClick={onToggleAnnotate}
+          title="Toggle annotation mode"
+          className={annotateMode ? "text-foreground" : "text-muted-foreground"}
+        >
+          ✎
+        </Button>
+      )}
       <Button
         variant={darkMode ? "secondary" : "ghost"}
         size="icon-xs"

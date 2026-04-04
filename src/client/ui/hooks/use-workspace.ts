@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useState } from "react"
-import type { Viewport } from "@/kernel/entities"
+import type { Viewport, PdfRegion } from "@/kernel/entities"
 import { createNode } from "@/kernel/transforms/create-node"
 import { updateNodeContent } from "@/kernel/transforms/update-node-content"
 import { moveNode } from "@/kernel/transforms/move-node"
@@ -16,6 +16,8 @@ import { createTransformNode } from "@/kernel/transforms/create-transform-node"
 import { updateTransformCode } from "@/kernel/transforms/update-transform-code"
 import { updateTransformTimeout } from "@/kernel/transforms/update-transform-timeout"
 import { updateConnectionLabel } from "@/kernel/transforms/update-connection-label"
+import { createAnnotation } from "@/kernel/transforms/create-annotation"
+import { deleteAnnotation } from "@/kernel/transforms/delete-annotation"
 import { createChatNode } from "@/kernel/transforms/create-chat-node"
 import { updateChatModel } from "@/kernel/transforms/update-chat-model"
 import { removeNodeWithCleanup } from "@/client/domain/use-cases/remove-node-with-cleanup"
@@ -277,6 +279,28 @@ export function useWorkspace({ getViewport }: UseWorkspaceArgs) {
     [setNodes, scheduleSave]
   )
 
+  const handleAnnotationCreate = useCallback(
+    (nodeId: string, page: number, region: PdfRegion, label: string, text: string) => {
+      setNodes((prev) => {
+        const updated = createAnnotation(prev, nodeId, page, region, label, text)
+        scheduleSave(updated)
+        return updated
+      })
+    },
+    [setNodes, scheduleSave]
+  )
+
+  const handleAnnotationDelete = useCallback(
+    (nodeId: string, annotationId: string) => {
+      setNodes((prev) => {
+        const updated = deleteAnnotation(prev, nodeId, annotationId)
+        scheduleSave(updated)
+        return updated
+      })
+    },
+    [setNodes, scheduleSave]
+  )
+
   const handleUpdateConnectionLabel = useCallback(
     (connectionId: string, label: string) => {
       setConnections((prev) => {
@@ -311,6 +335,8 @@ export function useWorkspace({ getViewport }: UseWorkspaceArgs) {
     handleSendMessage,
     handleResetChat,
     handleModelChange,
+    handleAnnotationCreate,
+    handleAnnotationDelete,
     handleUpdateConnectionLabel,
     streamingNodeIds,
     roster,

@@ -1,3 +1,5 @@
+import type { PdfRegion } from "./pdf-annotation"
+
 export type ResolvedMarkdownInput = {
   text: string
   type: "markdown"
@@ -10,6 +12,7 @@ export type ResolvedPdfInput = {
   currentPage: number
   totalPages: number
   filename: string
+  annotations: Array<{ label: string; page: number; region: PdfRegion; text: string }>
 }
 
 export type ResolvedDerivedInput = {

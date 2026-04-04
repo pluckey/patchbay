@@ -1,18 +1,5 @@
-import { PROVIDER_CONFIG, type ProviderConfig } from "@/server/config/providers"
-import { streamChat as streamAnthropic } from "@/server/adapters/anthropic/chat"
+import { PROVIDER_CONFIG } from "@/server/config/providers"
 import { streamChat as streamOpenAICompat } from "@/server/adapters/openai-compat/chat"
-
-type ChatParams = { messages: { role: "user" | "assistant"; content: string }[]; systemPrompt: string; model: string }
-
-const adapterMap: Record<ProviderConfig["adapterType"], (params: ChatParams, config: ProviderConfig) => AsyncGenerator<string>> = {
-  "anthropic-native": (params) => streamAnthropic(params),
-  "openai-compatible": (params, config) => streamOpenAICompat({
-    ...params,
-    baseURL: config.baseURL!,
-    apiKeyEnvVar: config.apiKeyEnvVar,
-    headers: config.headers,
-  }),
-}
 
 export async function POST(request: Request) {
   const body = await request.json()
@@ -36,8 +23,14 @@ export async function POST(request: Request) {
     return new Response("Server configuration error: API key not configured for this provider", { status: 500 })
   }
 
-  const createStream = adapterMap[providerConfig.adapterType]
-  const chatStream = createStream({ messages, systemPrompt, model }, providerConfig)
+  const chatStream = streamOpenAICompat({
+    messages,
+    systemPrompt,
+    model,
+    baseURL: providerConfig.baseURL,
+    apiKeyEnvVar: providerConfig.apiKeyEnvVar,
+    headers: providerConfig.headers,
+  })
 
   const encoder = new TextEncoder()
   const stream = new ReadableStream({

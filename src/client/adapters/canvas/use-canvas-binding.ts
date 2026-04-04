@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useMemo } from "react"
 import type { Node, Edge, OnNodeDrag, OnNodesChange, OnEdgesChange, NodeChange, EdgeChange, Connection as FlowConnection } from "@xyflow/react"
 import { applyNodeChanges, applyEdgeChanges, useReactFlow } from "@xyflow/react"
-import type { WorkspaceNode, Connection, TransformResult, ModelRosterEntry } from "@/kernel/entities"
+import type { WorkspaceNode, Connection, TransformResult, ModelRosterEntry, PdfRegion } from "@/kernel/entities"
 import { toFlowNodes, toFlowEdges, fromNodeDragStop } from "@/client/adapters/canvas/flow-node-mapper"
 import { resolveChatSystemPrompts } from "@/client/domain/use-cases/resolve-chat-prompts"
 
@@ -29,6 +29,8 @@ type UseCanvasBindingArgs = {
   onSendMessage: (nodeId: string, content: string, systemPrompt: string) => void
   onResetChat: (nodeId: string) => void
   onModelChange: (nodeId: string, provider: string, model: string) => void
+  onAnnotationCreate: (nodeId: string, page: number, region: PdfRegion, label: string, text: string) => void
+  onAnnotationDelete: (nodeId: string, annotationId: string) => void
   roster: ModelRosterEntry[]
   onCreateConnection: (sourceId: string, targetId: string) => boolean
   onRemoveConnection: (connectionId: string) => void
@@ -54,6 +56,8 @@ export function useCanvasBinding({
   onSendMessage,
   onResetChat,
   onModelChange,
+  onAnnotationCreate,
+  onAnnotationDelete,
   roster,
   onCreateConnection,
   onRemoveConnection,
@@ -82,8 +86,10 @@ export function useCanvasBinding({
       onSendMessage,
       onResetChat,
       onModelChange,
+      onAnnotationCreate,
+      onAnnotationDelete,
     }, pipelineResults, chatSystemPrompts, streamingNodeIds, roster))
-  }, [nodes, connections, pipelineResults, chatSystemPrompts, streamingNodeIds, onContentChange, onDelete, onResize, onNavigatePage, onZoomChange, onDarkModeToggle, onTransformCodeChange, onTimeoutChange, onRerun, onSendMessage, onResetChat, onModelChange, roster])
+  }, [nodes, connections, pipelineResults, chatSystemPrompts, streamingNodeIds, onContentChange, onDelete, onResize, onNavigatePage, onZoomChange, onDarkModeToggle, onTransformCodeChange, onTimeoutChange, onRerun, onSendMessage, onResetChat, onModelChange, onAnnotationCreate, onAnnotationDelete, roster])
 
   // Sync domain connections → flow edges
   const [flowEdges, setFlowEdges] = useState<Edge[]>([])

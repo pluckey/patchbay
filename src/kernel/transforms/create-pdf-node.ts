@@ -17,6 +17,7 @@ export function createPdfNode(params: {
     totalPages: params.totalPages,
     zoomLevel: 1.0,
     darkMode: false,
+    annotations: [],
     position: params.position,
     dimensions: { width: 400, height: 500 },
     createdAt: now,

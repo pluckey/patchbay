@@ -1,4 +1,5 @@
 import type { Message } from "./chat"
+import type { PdfAnnotation } from "./pdf-annotation"
 
 export type Position = {
   x: number
@@ -31,6 +32,7 @@ export type PdfNodeData = BaseNode & {
   totalPages: number
   zoomLevel: number
   darkMode: boolean
+  annotations: PdfAnnotation[]
 }
 
 export type TransformNodeData = BaseNode & {

@@ -10,8 +10,11 @@ const PdfContent = lazy(() =>
 )
 
 function PdfNodeInner({ data }: NodeProps) {
-  const { nodeId, blobId, filename, currentPage, totalPages, zoomLevel, darkMode, onNavigatePage, onZoomChange, onDarkModeToggle, onDelete, onResizeEnd } =
-    data as unknown as PdfFlowNodeData
+  const {
+    nodeId, blobId, filename, currentPage, totalPages, zoomLevel, darkMode,
+    annotations, onNavigatePage, onZoomChange, onDarkModeToggle,
+    onAnnotationCreate, onAnnotationDelete, onDelete, onResizeEnd,
+  } = data as unknown as PdfFlowNodeData
 
   return (
     <NodeShell
@@ -38,9 +41,12 @@ function PdfNodeInner({ data }: NodeProps) {
           totalPages={totalPages}
           zoomLevel={zoomLevel}
           darkMode={darkMode}
+          annotations={annotations}
           onNavigatePage={(page) => onNavigatePage(nodeId, page)}
           onZoomChange={(zoom) => onZoomChange(nodeId, zoom)}
           onDarkModeToggle={() => onDarkModeToggle(nodeId)}
+          onAnnotationCreate={(page, region, label, text) => onAnnotationCreate(nodeId, page, region, label, text)}
+          onAnnotationDelete={(annotationId) => onAnnotationDelete(nodeId, annotationId)}
         />
       </Suspense>
     </NodeShell>

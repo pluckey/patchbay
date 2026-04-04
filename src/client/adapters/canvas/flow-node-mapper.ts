@@ -1,5 +1,5 @@
 import type { Node, Edge } from "@xyflow/react"
-import type { Position, WorkspaceNode, Connection, TransformResult, Message, InputLegendEntry, ModelRosterEntry } from "@/kernel/entities"
+import type { Position, WorkspaceNode, Connection, TransformResult, Message, InputLegendEntry, ModelRosterEntry, PdfAnnotation, PdfRegion } from "@/kernel/entities"
 
 export type MarkdownFlowNodeData = {
   nodeId: string
@@ -17,9 +17,12 @@ export type PdfFlowNodeData = {
   totalPages: number
   zoomLevel: number
   darkMode: boolean
+  annotations: PdfAnnotation[]
   onNavigatePage: (nodeId: string, page: number) => void
   onZoomChange: (nodeId: string, zoomLevel: number) => void
   onDarkModeToggle: (nodeId: string) => void
+  onAnnotationCreate: (nodeId: string, page: number, region: PdfRegion, label: string, text: string) => void
+  onAnnotationDelete: (nodeId: string, annotationId: string) => void
   onDelete: (nodeId: string) => void
   onResizeEnd: (nodeId: string, dimensions: { width: number; height: number }) => void
 }
@@ -69,6 +72,8 @@ type FlowCallbacks = {
   onSendMessage: (nodeId: string, content: string, systemPrompt: string) => void
   onResetChat: (nodeId: string) => void
   onModelChange: (nodeId: string, provider: string, model: string) => void
+  onAnnotationCreate: (nodeId: string, page: number, region: PdfRegion, label: string, text: string) => void
+  onAnnotationDelete: (nodeId: string, annotationId: string) => void
 }
 
 export function toFlowNodes(
@@ -113,9 +118,12 @@ export function toFlowNodes(
             totalPages: node.totalPages,
             zoomLevel: node.zoomLevel,
             darkMode: node.darkMode,
+            annotations: node.annotations,
             onNavigatePage: callbacks.onNavigatePage,
             onZoomChange: callbacks.onZoomChange,
             onDarkModeToggle: callbacks.onDarkModeToggle,
+            onAnnotationCreate: callbacks.onAnnotationCreate,
+            onAnnotationDelete: callbacks.onAnnotationDelete,
             onDelete: callbacks.onDelete,
             onResizeEnd: callbacks.onResizeEnd,
           } satisfies PdfFlowNodeData,

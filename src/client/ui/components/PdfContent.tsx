@@ -1,14 +1,20 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { usePdfViewer } from "@/client/ui/hooks/use-pdf-viewer"
 import { usePdfSearch } from "@/client/ui/hooks/use-pdf-search"
+import { usePdfAnnotationDraw } from "@/client/ui/hooks/use-pdf-annotation-draw"
 import { useAdapters } from "@/client/ui/app/adapters-context"
-import type { PdfOutlineItem } from "@/kernel/entities"
+import type { PdfOutlineItem, PdfAnnotation, PdfTextItem, PdfRegion } from "@/kernel/entities"
+import { extractRegionText } from "@/kernel/transforms/extract-region-text"
+import { screenToPdf } from "./pdf-coordinates"
 import { PdfSearchBar } from "./PdfSearchBar"
 import { PdfTableOfContents } from "./PdfTableOfContents"
 import { PdfPageNav } from "./PdfPageNav"
 import { PdfZoomBar } from "./PdfZoomBar"
+import { PdfTextLayer } from "./PdfTextLayer"
+import { PdfAnnotationLayer } from "./PdfAnnotationLayer"
+import { PdfAnnotationLabelInput } from "./PdfAnnotationLabelInput"
 
 type PdfContentProps = {
   blobId: string
@@ -17,9 +23,12 @@ type PdfContentProps = {
   totalPages: number
   zoomLevel: number
   darkMode: boolean
+  annotations: PdfAnnotation[]
   onNavigatePage: (page: number) => void
   onZoomChange: (zoomLevel: number) => void
   onDarkModeToggle: () => void
+  onAnnotationCreate: (page: number, region: PdfRegion, label: string, text: string) => void
+  onAnnotationDelete: (annotationId: string) => void
 }
 
 export function PdfContent({
@@ -28,9 +37,12 @@ export function PdfContent({
   totalPages,
   zoomLevel,
   darkMode,
+  annotations,
   onNavigatePage,
   onZoomChange,
   onDarkModeToggle,
+  onAnnotationCreate,
+  onAnnotationDelete,
 }: PdfContentProps) {
   const { blobStorage, pdfRenderer } = useAdapters()
   const { status, doc, renderPage, preRenderAdjacent } = usePdfViewer({
@@ -40,9 +52,12 @@ export function PdfContent({
   })
   const containerRef = useRef<HTMLDivElement>(null)
   const canvasHostRef = useRef<HTMLDivElement>(null)
+  const canvasRef = useRef<HTMLDivElement>(null)
   const [outline, setOutline] = useState<PdfOutlineItem[] | null>(null)
   const [showToc, setShowToc] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [textItems, setTextItems] = useState<PdfTextItem[]>([])
+  const [pageDims, setPageDims] = useState<{ width: number; height: number } | null>(null)
 
   const { totalMatches, currentMatchIndex, isSearching, nextMatch, prevMatch } = usePdfSearch({
     doc,
@@ -71,17 +86,95 @@ export function PdfContent({
     doc.getOutline().then(setOutline).catch(() => setOutline(null))
   }, [doc])
 
+  // Fetch text items and page dimensions when page changes
+  useEffect(() => {
+    if (status !== "ready" || !doc) return
+    let cancelled = false
+    Promise.all([
+      pdfRenderer.getPageTextItems(doc, currentPage),
+      pdfRenderer.getPageDimensions(doc, currentPage),
+    ]).then(([items, dims]) => {
+      if (cancelled) return
+      setTextItems(items)
+      setPageDims(dims)
+    }).catch(() => {
+      if (!cancelled) {
+        setTextItems([])
+        setPageDims(null)
+      }
+    })
+    return () => { cancelled = true }
+  }, [status, doc, currentPage, pdfRenderer])
+
+  // Render canvas
   useEffect(() => {
     if (status !== "ready" || hostWidth === 0) return
     let cancelled = false
     renderPage(currentPage, hostWidth, zoomLevel).then((canvas) => {
-      if (cancelled || !canvas || !canvasHostRef.current) return
-      canvasHostRef.current.innerHTML = ""
-      canvasHostRef.current.appendChild(canvas)
+      if (cancelled || !canvas || !canvasRef.current) return
+      canvasRef.current.innerHTML = ""
+      canvasRef.current.appendChild(canvas)
     })
     preRenderAdjacent(currentPage, totalPages, hostWidth, zoomLevel)
     return () => { cancelled = true }
   }, [status, currentPage, totalPages, zoomLevel, hostWidth, renderPage, preRenderAdjacent])
+
+  // Compute render scale (must match use-pdf-viewer.ts)
+  const renderScale = hostWidth > 0 && pageDims ? Math.max((hostWidth / 612) * zoomLevel, 0.1) : 0
+
+  // Filter annotations for current page
+  const pageAnnotations = useMemo(
+    () => annotations.filter((a) => a.page === currentPage),
+    [annotations, currentPage]
+  )
+
+  // Annotation draw hook
+  const handleAnnotationComplete = useCallback(
+    (screenRect: { x: number; y: number; width: number; height: number }, label: string) => {
+      if (!pageDims || renderScale === 0) return
+      const topLeft = toHostRelative(screenRect.x, screenRect.y)
+      const relativeRect = {
+        ...topLeft,
+        width: screenRect.width,
+        height: screenRect.height,
+      }
+      const pdfRegion = screenToPdf(relativeRect, renderScale, pageDims.height)
+      const text = extractRegionText(textItems, pdfRegion)
+      onAnnotationCreate(currentPage, pdfRegion, label, text)
+    },
+    [pageDims, renderScale, textItems, currentPage, onAnnotationCreate]
+  )
+
+  const {
+    annotateMode, toggleAnnotateMode,
+    drawingRect, handlers,
+    confirmLabel, cancelLabel, pendingRect,
+  } = usePdfAnnotationDraw(handleAnnotationComplete)
+
+  // Convert viewport coords to canvas-host content-relative (accounting for scroll + padding)
+  const toHostRelative = useCallback((viewportX: number, viewportY: number) => {
+    const host = canvasHostRef.current
+    if (!host) return { x: 0, y: 0 }
+    const hostRect = host.getBoundingClientRect()
+    const paddingLeft = parseFloat(getComputedStyle(host).paddingLeft)
+    const paddingTop = parseFloat(getComputedStyle(host).paddingTop)
+    return {
+      x: viewportX - hostRect.left - paddingLeft + host.scrollLeft,
+      y: viewportY - hostRect.top - paddingTop + host.scrollTop,
+    }
+  }, [])
+
+  const relativeDrawingRect = useMemo(() => {
+    if (!drawingRect || !canvasHostRef.current) return null
+    const topLeft = toHostRelative(drawingRect.x, drawingRect.y)
+    return { ...topLeft, width: drawingRect.width, height: drawingRect.height }
+  }, [drawingRect, toHostRelative])
+
+  const labelPosition = useMemo(() => {
+    if (!pendingRect || !canvasHostRef.current) return null
+    const bottomLeft = toHostRelative(pendingRect.x, pendingRect.y + pendingRect.height)
+    return bottomLeft
+  }, [pendingRect, toHostRelative])
 
   const handleTocNavigate = useCallback(
     (pageNumber: number) => {
@@ -93,7 +186,6 @@ export function PdfContent({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      // Don't intercept when user is typing in an input
       const tag = (e.target as HTMLElement).tagName
       if (tag === "INPUT" || tag === "TEXTAREA") return
 
@@ -116,7 +208,6 @@ export function PdfContent({
   )
 
   const handleFitToWidth = useCallback(() => {
-    // zoomLevel 1.0 = fit to container width (render scale = containerWidth / 612 * 1.0)
     onZoomChange(1)
   }, [onZoomChange])
 
@@ -172,16 +263,52 @@ export function PdfContent({
       <PdfZoomBar
         zoomLevel={zoomLevel}
         darkMode={darkMode}
+        annotateMode={annotateMode}
         onZoomChange={onZoomChange}
         onDarkModeToggle={onDarkModeToggle}
+        onToggleAnnotate={toggleAnnotateMode}
         onFitToWidth={handleFitToWidth}
         onFitToPage={handleFitToPage}
       />
       <div
         ref={canvasHostRef}
-        className="flex-1 overflow-auto p-2"
+        className="flex-1 overflow-auto p-2 relative"
         style={darkMode ? { filter: "invert(1) hue-rotate(180deg)" } : undefined}
-      />
+      >
+        {/* Canvas container — imperatively managed, React does not touch this */}
+        <div ref={canvasRef} />
+
+        {/* Text layer — transparent text for native selection (hidden in annotate mode) */}
+        {pageDims && !annotateMode && (
+          <PdfTextLayer
+            textItems={textItems}
+            scale={renderScale}
+            pageHeight={pageDims.height}
+          />
+        )}
+
+        {/* Annotation layer — SVG overlay for annotations + drawing */}
+        {pageDims && (
+          <PdfAnnotationLayer
+            annotations={pageAnnotations}
+            scale={renderScale}
+            pageHeight={pageDims.height}
+            drawMode={annotateMode}
+            drawingRect={relativeDrawingRect}
+            onDelete={onAnnotationDelete}
+            drawHandlers={annotateMode ? handlers : undefined}
+          />
+        )}
+
+        {/* Label input — shown after drawing completes */}
+        {labelPosition && (
+          <PdfAnnotationLabelInput
+            position={labelPosition}
+            onConfirm={confirmLabel}
+            onCancel={cancelLabel}
+          />
+        )}
+      </div>
       <div className="h-0.5 bg-muted shrink-0">
         <div
           className="h-full bg-indicator transition-all duration-200"

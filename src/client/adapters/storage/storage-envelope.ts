@@ -1,7 +1,7 @@
 import type { Workspace, WorkspaceNode, Connection } from "@/kernel/entities"
 
 export const STORAGE_KEY = "context-canvas:workspace"
-export const CURRENT_VERSION = 6
+export const CURRENT_VERSION = 7
 
 export type StorageEnvelope = {
   version: number
@@ -65,6 +65,20 @@ export function migrate(envelope: StorageEnvelope): StorageEnvelope {
       return { ...c, label: (typeof raw.label === "string" ? raw.label : `input_${i + 1}`) }
     })
     envelope.version = 6
+  }
+  // v6 → v7: add annotations array to PDF nodes
+  if (envelope.version < 7) {
+    envelope.nodes = envelope.nodes.map((node) => {
+      if (node.type === "pdf") {
+        const raw = node as Record<string, unknown>
+        return {
+          ...node,
+          annotations: Array.isArray(raw.annotations) ? raw.annotations : [],
+        }
+      }
+      return node
+    })
+    envelope.version = 7
   }
   return envelope
 }

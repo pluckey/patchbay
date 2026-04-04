@@ -2,6 +2,7 @@ import type {
   PdfRendererPort,
   PdfDocument,
   PdfOutlineItem,
+  PdfTextItem,
 } from "@/client/domain/ports/pdf-renderer-port"
 
 // pdf.js types — only used inside this adapter
@@ -13,10 +14,17 @@ type PdfJsDocument = {
   destroy(): Promise<void>
 }
 
+type PdfJsTextItem = {
+  str: string
+  transform: number[]
+  width: number
+  height: number
+}
+
 type PdfJsPage = {
   getViewport(params: { scale: number }): { width: number; height: number }
   render(params: { canvasContext: CanvasRenderingContext2D; viewport: { width: number; height: number } }): { promise: Promise<void> }
-  getTextContent(): Promise<{ items: Array<{ str: string }> }>
+  getTextContent(): Promise<{ items: Array<PdfJsTextItem | { str?: undefined }> }>
 }
 
 type PdfJsOutlineNode = {
@@ -126,7 +134,28 @@ export const pdfRenderer: PdfRendererPort = {
     const proxy = getProxy(doc)
     const page = await proxy.getPage(pageNum)
     const textContent = await page.getTextContent()
-    return textContent.items.map((item) => item.str).join(" ")
+    return textContent.items
+      .filter((item): item is PdfJsTextItem => item.str !== undefined)
+      .map((item) => item.str)
+      .join(" ")
+  },
+
+  async getPageTextItems(
+    doc: PdfDocument,
+    pageNum: number
+  ): Promise<PdfTextItem[]> {
+    const proxy = getProxy(doc)
+    const page = await proxy.getPage(pageNum)
+    const textContent = await page.getTextContent()
+    return textContent.items
+      .filter((item): item is PdfJsTextItem => item.str !== undefined && item.str !== "")
+      .map((item) => ({
+        str: item.str,
+        x: item.transform[4],
+        y: item.transform[5],
+        height: Math.sqrt(item.transform[0] ** 2 + item.transform[1] ** 2),
+        width: item.width,
+      }))
   },
 
   async getPageDimensions(

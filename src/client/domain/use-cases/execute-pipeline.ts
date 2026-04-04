@@ -63,6 +63,13 @@ async function resolveSourceContent(
     }
   }
 
+  if (sourceNode.type === "ai-transform") {
+    if (sourceNode.result?.status === "success") {
+      return { text: sourceNode.result.output, type: "derived" as const }
+    }
+    return { text: "", type: "derived" as const }
+  }
+
   return { text: "", type: "derived" as const }
 }
 

@@ -1,5 +1,5 @@
 import type { Node, Edge } from "@xyflow/react"
-import type { Position, WorkspaceNode, Connection, TransformResult, Message, InputLegendEntry, ModelRosterEntry, PdfAnnotation, PdfRegion } from "@/kernel/entities"
+import type { Position, WorkspaceNode, Connection, TransformResult, Message, InputLegendEntry, ModelRosterEntry, SchemaField, PdfAnnotation, PdfRegion } from "@/kernel/entities"
 
 export type MarkdownFlowNodeData = {
   nodeId: string
@@ -58,7 +58,30 @@ export type ChatFlowNodeData = {
   onResizeEnd: (nodeId: string, dimensions: { width: number; height: number }) => void
 }
 
-export type FlowNodeData = MarkdownFlowNodeData | PdfFlowNodeData | TransformFlowNodeData | ChatFlowNodeData
+export type AiTransformFlowNodeData = {
+  nodeId: string
+  instruction: string
+  provider: string
+  model: string
+  autoExecute: boolean
+  inputMode: "concat" | "named"
+  outputMode: "text" | "structured"
+  schema: SchemaField[]
+  roster: ModelRosterEntry[]
+  inputLegend: InputLegendEntry[]
+  result?: TransformResult
+  onInstructionChange: (nodeId: string, instruction: string) => void
+  onModelChange: (nodeId: string, provider: string, model: string) => void
+  onInputModeChange: (nodeId: string, inputMode: "concat" | "named") => void
+  onAutoExecuteToggle: (nodeId: string) => void
+  onOutputModeChange: (nodeId: string, mode: "text" | "structured") => void
+  onSchemaChange: (nodeId: string, schema: SchemaField[]) => void
+  onExecute: (nodeId: string) => void
+  onDelete: (nodeId: string) => void
+  onResizeEnd: (nodeId: string, dimensions: { width: number; height: number }) => void
+}
+
+export type FlowNodeData = MarkdownFlowNodeData | PdfFlowNodeData | TransformFlowNodeData | ChatFlowNodeData | AiTransformFlowNodeData
 
 type FlowCallbacks = {
   onContentChange: (nodeId: string, content: string) => void
@@ -76,6 +99,13 @@ type FlowCallbacks = {
   onAnnotationCreate: (nodeId: string, page: number, region: PdfRegion, label: string, text: string) => void
   onAnnotationDelete: (nodeId: string, annotationId: string) => void
   onAnnotationEdit: (nodeId: string, annotationId: string, label: string, region?: PdfRegion) => void
+  onAiInstructionChange: (nodeId: string, instruction: string) => void
+  onAiModelChange: (nodeId: string, provider: string, model: string) => void
+  onAiInputModeChange: (nodeId: string, inputMode: "concat" | "named") => void
+  onAiAutoExecuteToggle: (nodeId: string) => void
+  onAiOutputModeChange: (nodeId: string, mode: "text" | "structured") => void
+  onAiSchemaChange: (nodeId: string, schema: SchemaField[]) => void
+  onAiExecute: (nodeId: string) => void
 }
 
 export function toFlowNodes(
@@ -182,6 +212,43 @@ export function toFlowNodes(
             onDelete: callbacks.onDelete,
             onResizeEnd: callbacks.onResizeEnd,
           } satisfies ChatFlowNodeData,
+        }
+      }
+      case "ai-transform": {
+        const aiIncomingConns = connections.filter((c) => c.targetId === node.id)
+        const aiInputLegend: InputLegendEntry[] = aiIncomingConns.map((c) => {
+          const src = nodes.find((n) => n.id === c.sourceId)
+          const sourceName = src?.type === "pdf" ? src.filename
+            : src?.type === "markdown" ? extractMarkdownName(src.content)
+            : src?.type ?? "unknown"
+          return { label: c.label, sourceName, sourceType: src?.type ?? "unknown" }
+        })
+
+        return {
+          ...base,
+          type: "aiTransformNode",
+          data: {
+            nodeId: node.id,
+            instruction: node.instruction,
+            provider: node.provider,
+            model: node.model,
+            autoExecute: node.autoExecute,
+            inputMode: node.inputMode,
+            outputMode: node.outputMode,
+            schema: node.schema,
+            roster: roster ?? [],
+            inputLegend: aiInputLegend,
+            result: node.result,
+            onInstructionChange: callbacks.onAiInstructionChange,
+            onModelChange: callbacks.onAiModelChange,
+            onInputModeChange: callbacks.onAiInputModeChange,
+            onAutoExecuteToggle: callbacks.onAiAutoExecuteToggle,
+            onOutputModeChange: callbacks.onAiOutputModeChange,
+            onSchemaChange: callbacks.onAiSchemaChange,
+            onExecute: callbacks.onAiExecute,
+            onDelete: callbacks.onDelete,
+            onResizeEnd: callbacks.onResizeEnd,
+          } satisfies AiTransformFlowNodeData,
         }
       }
     }

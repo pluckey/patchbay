@@ -2,7 +2,7 @@
 
 ## System Identity
 
-Context Canvas is a spatial workspace for composing AI context, built with Next.js 16, TypeScript, Tailwind CSS 4, and @xyflow/react. It serves knowledge workers who spatially arrange source material — markdown text, PDFs, JS transforms, and AI chat — to compose and test context for AI consumption. The codebase lives at `/Users/home/Documents/projects/context-canvas`. Current state: functional single-user application with 4 node types, visible pipeline execution, server-side persistence, and multi-provider AI chat (Anthropic native + OpenAI-compatible via gateway).
+Context Canvas is a spatial workspace for composing AI context, built with Next.js 16, TypeScript, Tailwind CSS 4, and @xyflow/react. It serves knowledge workers who spatially arrange source material — markdown text, PDFs, JS transforms, AI chat, and AI transforms — to compose and test context for AI consumption. The codebase lives at `/Users/home/Documents/projects/context-canvas`. Current state: functional single-user application with 5 node types, visible pipeline execution, server-side persistence, multi-provider AI chat (Anthropic native + OpenAI-compatible direct), and structured output mode for AI transforms.
 
 ## Discovery Protocol
 
@@ -10,9 +10,9 @@ Context Canvas is a spatial workspace for composing AI context, built with Next.
 - Read `package.json` for dependencies and scripts
 - Glob `src/kernel/entities/*.ts` for domain types
 - Glob `src/kernel/transforms/*.ts` for pure transform functions
-- Glob `src/client/domain/ports/*.ts` for port interfaces
-- Glob `src/client/domain/use-cases/*.ts` for orchestration logic
-- Glob `src/client/ui/components/*.tsx` for UI components
+- Glob `src/client/domain/ports/*.ts` for port interfaces (StoragePort, BlobStoragePort, PdfRendererPort, TransformExecutorPort, ChatPort, ModelRosterPort, AiExecutorPort — AiExecutorPort accepts optional schema for structured output)
+- Glob `src/client/domain/use-cases/*.ts` for orchestration logic (execute-pipeline, send-chat-message, execute-ai-transform, etc.)
+- Glob `src/client/ui/components/*.tsx` for UI components (MarkdownNode, PdfNode, TransformNode, ChatNode, AiTransformNode, etc.)
 - Check `.specs/archive/` for completed feature specs
 - Check `.specs/features/` for active feature specs
 
@@ -35,7 +35,7 @@ Context Canvas is a spatial workspace for composing AI context, built with Next.
 | New external capability (storage, rendering, execution) | Port in `client/domain/ports/`, Adapter in `client/adapters/` |
 | New orchestration across ports + transforms | Use Case in `client/domain/use-cases/` |
 | New visual element | Component in `client/ui/components/` |
-| New UI-to-domain bridge | Hook in `client/ui/hooks/` |
+| New UI-to-domain bridge | Hook in `client/ui/hooks/` (compose in `useWorkspace` like `usePdfOperations`, `useAiTransformHandlers`) |
 | New server-side capability | Adapter in `server/adapters/` or `server/storage/` |
 | DON'T create a service class — use cases are functions, not classes |
 | DON'T import concrete adapters in hooks — use `useAdapters()` context |

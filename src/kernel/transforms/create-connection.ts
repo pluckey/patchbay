@@ -41,6 +41,9 @@ function generateLabel(
       case "chat":
         base = "chat"
         break
+      case "ai-transform":
+        base = "ai_transform"
+        break
       default:
         base = "input"
     }

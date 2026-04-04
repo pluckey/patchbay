@@ -22,6 +22,7 @@ import { MarkdownNode } from "./MarkdownNode"
 import { PdfNode } from "./PdfNode"
 import { TransformNode } from "./TransformNode"
 import { ChatNode } from "./ChatNode"
+import { AiTransformNode } from "./AiTransformNode"
 import { LabeledEdge } from "./LabeledEdge"
 
 type CanvasProps = {
@@ -37,7 +38,7 @@ type CanvasProps = {
 
 export function Canvas({ nodes, edges, onNodesChange, onEdgesChange, onNodeDragStop, onConnect, initialViewport, onDropPdf }: CanvasProps) {
   const nodeTypes: NodeTypes = useMemo(
-    () => ({ markdownNode: MarkdownNode, pdfNode: PdfNode, transformNode: TransformNode, chatNode: ChatNode }),
+    () => ({ markdownNode: MarkdownNode, pdfNode: PdfNode, transformNode: TransformNode, chatNode: ChatNode, aiTransformNode: AiTransformNode }),
     []
   )
   const edgeTypes: EdgeTypes = useMemo(

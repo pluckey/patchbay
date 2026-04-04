@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useMemo } from "react"
 import type { Node, Edge, OnNodeDrag, OnNodesChange, OnEdgesChange, NodeChange, EdgeChange, Connection as FlowConnection } from "@xyflow/react"
 import { applyNodeChanges, applyEdgeChanges, useReactFlow } from "@xyflow/react"
-import type { WorkspaceNode, Connection, TransformResult, ModelRosterEntry, PdfRegion } from "@/kernel/entities"
+import type { WorkspaceNode, Connection, TransformResult, ModelRosterEntry, SchemaField, PdfRegion } from "@/kernel/entities"
 import { toFlowNodes, toFlowEdges, fromNodeDragStop } from "@/client/adapters/canvas/flow-node-mapper"
 import { resolveChatSystemPrompts } from "@/client/domain/use-cases/resolve-chat-prompts"
 
@@ -32,6 +32,13 @@ type UseCanvasBindingArgs = {
   onAnnotationCreate: (nodeId: string, page: number, region: PdfRegion, label: string, text: string) => void
   onAnnotationDelete: (nodeId: string, annotationId: string) => void
   onAnnotationEdit: (nodeId: string, annotationId: string, label: string) => void
+  onAiInstructionChange: (nodeId: string, instruction: string) => void
+  onAiModelChange: (nodeId: string, provider: string, model: string) => void
+  onAiInputModeChange: (nodeId: string, inputMode: "concat" | "named") => void
+  onAiAutoExecuteToggle: (nodeId: string) => void
+  onAiOutputModeChange: (nodeId: string, mode: "text" | "structured") => void
+  onAiSchemaChange: (nodeId: string, schema: SchemaField[]) => void
+  onAiExecute: (nodeId: string) => void
   roster: ModelRosterEntry[]
   onCreateConnection: (sourceId: string, targetId: string) => boolean
   onRemoveConnection: (connectionId: string) => void
@@ -60,6 +67,13 @@ export function useCanvasBinding({
   onAnnotationCreate,
   onAnnotationDelete,
   onAnnotationEdit,
+  onAiInstructionChange,
+  onAiModelChange,
+  onAiInputModeChange,
+  onAiAutoExecuteToggle,
+  onAiOutputModeChange,
+  onAiSchemaChange,
+  onAiExecute,
   roster,
   onCreateConnection,
   onRemoveConnection,
@@ -91,8 +105,15 @@ export function useCanvasBinding({
       onAnnotationCreate,
       onAnnotationDelete,
       onAnnotationEdit,
+      onAiInstructionChange,
+      onAiModelChange,
+      onAiInputModeChange,
+      onAiAutoExecuteToggle,
+      onAiOutputModeChange,
+      onAiSchemaChange,
+      onAiExecute,
     }, pipelineResults, chatSystemPrompts, streamingNodeIds, roster))
-  }, [nodes, connections, pipelineResults, chatSystemPrompts, streamingNodeIds, onContentChange, onDelete, onResize, onNavigatePage, onZoomChange, onDarkModeToggle, onTransformCodeChange, onTimeoutChange, onRerun, onSendMessage, onResetChat, onModelChange, onAnnotationCreate, onAnnotationDelete, onAnnotationEdit, roster])
+  }, [nodes, connections, pipelineResults, chatSystemPrompts, streamingNodeIds, onContentChange, onDelete, onResize, onNavigatePage, onZoomChange, onDarkModeToggle, onTransformCodeChange, onTimeoutChange, onRerun, onSendMessage, onResetChat, onModelChange, onAnnotationCreate, onAnnotationDelete, onAnnotationEdit, onAiInstructionChange, onAiModelChange, onAiInputModeChange, onAiAutoExecuteToggle, onAiOutputModeChange, onAiSchemaChange, onAiExecute, roster])
 
   // Sync domain connections → flow edges
   const [flowEdges, setFlowEdges] = useState<Edge[]>([])

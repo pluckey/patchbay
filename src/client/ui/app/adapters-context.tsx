@@ -7,6 +7,7 @@ import type { PdfRendererPort } from "@/client/domain/ports/pdf-renderer-port"
 import type { TransformExecutorPort } from "@/client/domain/ports/transform-executor-port"
 import type { ChatPort } from "@/client/domain/ports/chat-port"
 import type { ModelRosterPort } from "@/client/domain/ports/model-roster-port"
+import type { AiExecutorPort } from "@/client/domain/ports/ai-executor-port"
 
 export type Adapters = {
   storage: StoragePort
@@ -15,6 +16,7 @@ export type Adapters = {
   transformExecutor: TransformExecutorPort
   chat: ChatPort
   modelRoster: ModelRosterPort
+  aiExecutor: AiExecutorPort
 }
 
 const AdaptersContext = createContext<Adapters | null>(null)

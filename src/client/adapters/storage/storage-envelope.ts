@@ -1,7 +1,7 @@
 import type { Workspace, WorkspaceNode, Connection } from "@/kernel/entities"
 
 export const STORAGE_KEY = "context-canvas:workspace"
-export const CURRENT_VERSION = 7
+export const CURRENT_VERSION = 8
 
 export type StorageEnvelope = {
   version: number
@@ -79,6 +79,22 @@ export function migrate(envelope: StorageEnvelope): StorageEnvelope {
       return node
     })
     envelope.version = 7
+  }
+  // v7 → v8: add outputMode and schema to AI Transform nodes
+  if (envelope.version < 8) {
+    envelope.nodes = envelope.nodes.map((node) => {
+      if (node.type === "ai-transform") {
+        const raw = node as Record<string, unknown>
+        const outputMode = raw.outputMode === "structured" ? "structured" as const : "text" as const
+        return {
+          ...node,
+          outputMode,
+          schema: Array.isArray(raw.schema) ? raw.schema : [],
+        }
+      }
+      return node
+    })
+    envelope.version = 8
   }
   return envelope
 }

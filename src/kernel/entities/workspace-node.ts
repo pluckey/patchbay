@@ -1,5 +1,7 @@
 import type { Message } from "./chat"
+import type { TransformResult } from "./connection"
 import type { PdfAnnotation } from "./pdf-annotation"
+import type { SchemaField } from "./schema-field"
 
 export type Position = {
   x: number
@@ -48,4 +50,16 @@ export type ChatNodeData = BaseNode & {
   model: string
 }
 
-export type WorkspaceNode = MarkdownNodeData | PdfNodeData | TransformNodeData | ChatNodeData
+export type AiTransformNodeData = BaseNode & {
+  type: "ai-transform"
+  instruction: string
+  provider: string
+  model: string
+  autoExecute: boolean
+  inputMode: "concat" | "named"
+  outputMode: "text" | "structured"
+  schema: SchemaField[]
+  result?: TransformResult
+}
+
+export type WorkspaceNode = MarkdownNodeData | PdfNodeData | TransformNodeData | ChatNodeData | AiTransformNodeData

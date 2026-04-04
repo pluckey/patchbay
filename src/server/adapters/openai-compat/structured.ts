@@ -1,15 +1,19 @@
 import { createOpenAI } from "@ai-sdk/openai"
-import { streamText } from "ai"
+import { generateObject } from "ai"
+import { jsonSchema } from "ai"
+import type { SchemaField } from "@/kernel/entities"
+import { schemaFieldsToJsonSchema } from "../schema-to-json-schema"
 
-type ChatParams = {
+type StructuredParams = {
   messages: { role: "user" | "assistant"; content: string }[]
   systemPrompt: string
   model: string
   baseURL: string
   apiKeyEnvVar: string
+  schema: SchemaField[]
 }
 
-export async function* streamChat(params: ChatParams): AsyncGenerator<string> {
+export async function generateStructured(params: StructuredParams): Promise<string> {
   const apiKey = process.env[params.apiKeyEnvVar]
   if (!apiKey) {
     throw new Error(
@@ -22,8 +26,7 @@ export async function* streamChat(params: ChatParams): AsyncGenerator<string> {
     apiKey,
   })
 
-  const messages: { role: "system" | "user" | "assistant"; content: string }[] =
-    []
+  const messages: { role: "system" | "user" | "assistant"; content: string }[] = []
 
   if (params.systemPrompt) {
     messages.push({ role: "system", content: params.systemPrompt })
@@ -33,15 +36,11 @@ export async function* streamChat(params: ChatParams): AsyncGenerator<string> {
     messages.push({ role: m.role, content: m.content })
   }
 
-  // Use .chat() to force Chat Completions API (/v1/chat/completions).
-  // The default provider(modelId) routes to the Responses API (/v1/responses)
-  // which Portkey cannot translate correctly.
-  const result = streamText({
+  const result = await generateObject({
     model: provider.chat(params.model),
+    schema: jsonSchema(schemaFieldsToJsonSchema(params.schema)),
     messages,
   })
 
-  for await (const chunk of result.textStream) {
-    yield chunk
-  }
+  return JSON.stringify(result.object)
 }

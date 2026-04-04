@@ -355,5 +355,10 @@ export function useWorkspace({ getViewport }: UseWorkspaceArgs) {
     handleUpdateConnectionLabel,
     streamingNodeIds,
     roster,
+    // Expose internals for composed hooks
+    setNodes,
+    nodesRef,
+    connectionsRef,
+    scheduleSave,
   }
 }

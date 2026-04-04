@@ -1,9 +1,35 @@
-import { PROVIDER_CONFIG } from "@/server/config/providers"
+import { PROVIDER_CONFIG, type ProviderConfig } from "@/server/config/providers"
+import { streamChat as streamAnthropic } from "@/server/adapters/anthropic/chat"
 import { streamChat as streamOpenAICompat } from "@/server/adapters/openai-compat/chat"
+import { generateStructured as generateStructuredAnthropic } from "@/server/adapters/anthropic/structured"
+import { generateStructured as generateStructuredOpenAI } from "@/server/adapters/openai-compat/structured"
+import type { SchemaField } from "@/kernel/entities"
+
+type ChatParams = { messages: { role: "user" | "assistant"; content: string }[]; systemPrompt: string; model: string }
+
+const adapterMap: Record<ProviderConfig["adapterType"], (params: ChatParams, config: ProviderConfig) => AsyncGenerator<string>> = {
+  "anthropic-native": (params) => streamAnthropic(params),
+  "openai-compatible": (params, config) => streamOpenAICompat({
+    ...params,
+    baseURL: config.baseURL!,
+    apiKeyEnvVar: config.apiKeyEnvVar,
+  }),
+}
+
+type StructuredParams = ChatParams & { schema: SchemaField[] }
+
+const structuredAdapterMap: Record<ProviderConfig["adapterType"], (params: StructuredParams, config: ProviderConfig) => Promise<string>> = {
+  "anthropic-native": (params) => generateStructuredAnthropic(params),
+  "openai-compatible": (params, config) => generateStructuredOpenAI({
+    ...params,
+    baseURL: config.baseURL!,
+    apiKeyEnvVar: config.apiKeyEnvVar,
+  }),
+}
 
 export async function POST(request: Request) {
   const body = await request.json()
-  const { messages, systemPrompt, model, provider } = body
+  const { messages, systemPrompt, model, provider, schema } = body
 
   if (!Array.isArray(messages) || typeof model !== "string" || !model) {
     return new Response("Missing required fields: messages (array) and model (string)", { status: 400 })
@@ -23,14 +49,22 @@ export async function POST(request: Request) {
     return new Response("Server configuration error: API key not configured for this provider", { status: 500 })
   }
 
-  const chatStream = streamOpenAICompat({
-    messages,
-    systemPrompt,
-    model,
-    baseURL: providerConfig.baseURL,
-    apiKeyEnvVar: providerConfig.apiKeyEnvVar,
-    headers: providerConfig.headers,
-  })
+  // Structured output path (non-streaming)
+  if (Array.isArray(schema) && schema.length > 0) {
+    try {
+      const generate = structuredAdapterMap[providerConfig.adapterType]
+      const jsonString = await generate({ messages, systemPrompt, model, schema }, providerConfig)
+      return new Response(jsonString, {
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+      })
+    } catch (e) {
+      return new Response(e instanceof Error ? e.message : String(e), { status: 502 })
+    }
+  }
+
+  // Streaming text path (existing)
+  const createStream = adapterMap[providerConfig.adapterType]
+  const chatStream = createStream({ messages, systemPrompt, model }, providerConfig)
 
   const encoder = new TextEncoder()
   const stream = new ReadableStream({

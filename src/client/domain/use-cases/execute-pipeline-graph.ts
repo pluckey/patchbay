@@ -21,6 +21,13 @@ export async function executePipelineGraph(
 ): Promise<Map<string, TransformResult>> {
   const results = new Map<string, TransformResult>()
 
+  // Pre-seed cached AI Transform results so downstream transforms can read them
+  for (const node of nodes) {
+    if (node.type === "ai-transform" && node.result?.status === "success") {
+      results.set(node.id, node.result)
+    }
+  }
+
   // Active = any transform with at least one incoming connection
   const transformNodes = nodes.filter((n) => n.type === "transform")
   const activePipelines = transformNodes.filter((tn) =>

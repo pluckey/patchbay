@@ -21,6 +21,9 @@ src/
       canvas/         ← xyflow ↔ domain mapping (flow-node-mapper, use-canvas-binding)
       pdf/            ← PdfRendererPort implementation (pdf.js)
       execution/      ← TransformExecutorPort implementation (Web Worker)
+      chat/           ← ChatPort implementation (fetch to /api/chat)
+      model-roster/   ← ModelRosterPort implementation (fetch to /api/models)
+      ai-executor/    ← AiExecutorPort implementation (fetch to /api/chat, non-streaming)
     ui/
       hooks/          ← React hooks bridging UI to domain use cases (via DI context)
       components/     ← React components (receive data + callbacks via props)
@@ -51,7 +54,7 @@ src/
 
 xyflow imports are allowed in:
 - `src/client/adapters/canvas/` — flow-node-mapper, use-canvas-binding
-- `src/client/ui/components/` — Canvas.tsx, CanvasProvider.tsx, NodeShell.tsx, node components (MarkdownNode, PdfNode, TransformNode)
+- `src/client/ui/components/` — Canvas.tsx, CanvasProvider.tsx, NodeShell.tsx, node components (MarkdownNode, PdfNode, TransformNode, ChatNode, AiTransformNode)
 
 xyflow imports are NOT allowed in:
 - `src/kernel/` — never
@@ -74,7 +77,7 @@ During an active drag, xyflow owns node position transiently (for 60fps). On `on
 ### Dependency Injection Pattern
 
 - `AdaptersContext` in `client/ui/app/adapters-context.tsx` provides concrete adapters
-- `useAdapters()` hook returns `{ storage, blobStorage, pdfRenderer, transformExecutor, chat, modelRoster }`
+- `useAdapters()` hook returns `{ storage, blobStorage, pdfRenderer, transformExecutor, chat, modelRoster, aiExecutor }`
 - `src/app/page.tsx` creates the `AdaptersProvider` with concrete instances
 - Hooks and components consume via `useAdapters()` — never by direct import
 

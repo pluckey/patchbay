@@ -2,50 +2,48 @@ import type { ModelRosterEntry } from "@/kernel/entities"
 
 // ---------------------------------------------------------------------------
 // Provider configuration — server-only, never sent to client
-// All providers route through Portkey AI gateway.
+// Direct provider APIs. No gateway.
 // ---------------------------------------------------------------------------
 
 export type ProviderConfig = {
-  adapterType: "openai-compatible"
+  adapterType: "anthropic-native" | "openai-compatible"
   apiKeyEnvVar: string
-  baseURL: string
-  headers?: Record<string, string>
+  baseURL?: string
 }
-
-const PORTKEY_BASE_URL = "https://api.portkey.ai/v1"
 
 export const PROVIDER_CONFIG: Record<string, ProviderConfig> = {
   anthropic: {
-    adapterType: "openai-compatible",
-    apiKeyEnvVar: "PORTKEY_API_KEY",
-    baseURL: PORTKEY_BASE_URL,
-    headers: { "x-portkey-provider": "anthropic" },
+    adapterType: "anthropic-native",
+    apiKeyEnvVar: "ANTHROPIC_API_KEY",
   },
   openai: {
     adapterType: "openai-compatible",
-    apiKeyEnvVar: "PORTKEY_API_KEY",
-    baseURL: PORTKEY_BASE_URL,
-    headers: { "x-portkey-provider": "openai" },
+    apiKeyEnvVar: "OPENAI_API_KEY",
+    baseURL: "https://api.openai.com/v1",
   },
   xai: {
     adapterType: "openai-compatible",
-    apiKeyEnvVar: "PORTKEY_API_KEY",
-    baseURL: PORTKEY_BASE_URL,
-    headers: { "x-portkey-provider": "x-ai" },
+    apiKeyEnvVar: "XAI_API_KEY",
+    baseURL: "https://api.x.ai/v1",
+  },
+  google: {
+    adapterType: "openai-compatible",
+    apiKeyEnvVar: "GOOGLE_API_KEY",
+    baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
   },
 }
 
 // ---------------------------------------------------------------------------
 // Model roster — roster entries are safe to send to client
-// Model IDs use Portkey's @provider/model format for gateway routing.
+// Plain model IDs — no gateway prefixes.
 // ---------------------------------------------------------------------------
 
 export const MODEL_ROSTER: ModelRosterEntry[] = [
-  { provider: "anthropic", model: "@anthropic/claude-sonnet-4-20250514", displayName: "Claude Sonnet 4" },
-  { provider: "anthropic", model: "@anthropic/claude-haiku-4-5-20251001", displayName: "Claude Haiku 4.5" },
-  { provider: "openai", model: "@openai/gpt-4o", displayName: "GPT-4o" },
-  { provider: "openai", model: "@openai/gpt-4o-mini", displayName: "GPT-4o Mini" },
-  { provider: "xai", model: "@x-ai/grok-4.20-0309-reasoning", displayName: "Grok 4.20" },
+  { provider: "anthropic", model: "claude-sonnet-4-20250514", displayName: "Claude Sonnet 4" },
+  { provider: "anthropic", model: "claude-haiku-4-5-20251001", displayName: "Claude Haiku 4.5" },
+  { provider: "openai", model: "gpt-4o", displayName: "GPT-4o" },
+  { provider: "openai", model: "gpt-4o-mini", displayName: "GPT-4o Mini" },
+  { provider: "xai", model: "grok-4.20-0309-reasoning", displayName: "Grok 4.20" },
 ]
 
 // ---------------------------------------------------------------------------

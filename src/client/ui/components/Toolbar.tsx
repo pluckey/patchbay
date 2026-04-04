@@ -7,10 +7,11 @@ type ToolbarProps = {
   onAddNode: () => void
   onAddTransform?: () => void
   onAddChat?: () => void
+  onAddAiTransform?: () => void
   onUploadPdf?: (file: File) => void
 }
 
-export function Toolbar({ onAddNode, onAddTransform, onAddChat, onUploadPdf }: ToolbarProps) {
+export function Toolbar({ onAddNode, onAddTransform, onAddChat, onAddAiTransform, onUploadPdf }: ToolbarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   return (
@@ -21,6 +22,9 @@ export function Toolbar({ onAddNode, onAddTransform, onAddChat, onUploadPdf }: T
       )}
       {onAddChat && (
         <Button variant="outline" onClick={onAddChat}>+ Chat</Button>
+      )}
+      {onAddAiTransform && (
+        <Button variant="outline" onClick={onAddAiTransform}>+ AI Transform</Button>
       )}
       {onUploadPdf && (
         <>

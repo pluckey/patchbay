@@ -2,14 +2,14 @@
 
 ## System Identity
 
-Context Canvas is a spatial workspace for composing AI context, built with Next.js 16, TypeScript, Tailwind CSS 4, and @xyflow/react. It serves knowledge workers who spatially arrange source material — markdown text, PDFs, JS transforms, AI chat, and AI transforms — to compose and test context for AI consumption. The codebase lives at `/Users/home/Documents/projects/context-canvas`. Current state: functional single-user application with 5 node types, visible pipeline execution, server-side persistence, multi-provider AI chat (Anthropic native + OpenAI-compatible direct), and structured output mode (single object or collection) for AI transforms.
+Context Canvas is a spatial workspace for composing AI context, built with Next.js 16, TypeScript, Tailwind CSS 4, and @xyflow/react. It serves knowledge workers who spatially arrange source material — markdown text, PDFs, JS transforms, AI chat, and AI transforms — to compose and test context for AI consumption. The codebase lives at `/Users/home/Documents/projects/context-canvas`. Current state: functional single-user application with 5 node types, visible pipeline execution, server-side persistence, multi-provider AI chat (Anthropic native + OpenAI-compatible direct), structured output mode (single object or collection) for AI transforms, and PDF helper functions (`pdf.*`) available as globals in Transform node code.
 
 ## Discovery Protocol
 
 - Read `CLAUDE.md` for authoritative architectural rules, conventions, and known traps
 - Read `package.json` for dependencies and scripts
 - Glob `src/kernel/entities/*.ts` for domain types
-- Glob `src/kernel/transforms/*.ts` for pure transform functions
+- Glob `src/kernel/transforms/*.ts` for pure transform functions (includes `pdf-helpers.ts` — source of truth for PDF helpers mirrored at runtime in `public/transform-worker.js`)
 - Glob `src/client/domain/ports/*.ts` for port interfaces (StoragePort, BlobStoragePort, PdfRendererPort, TransformExecutorPort, ChatPort, ModelRosterPort, AiExecutorPort — AiExecutorPort accepts optional schema and schemaMode for single/collection structured output)
 - Glob `src/client/domain/use-cases/*.ts` for orchestration logic (execute-pipeline, send-chat-message, execute-ai-transform, etc.)
 - Glob `src/client/ui/components/*.tsx` for UI components (MarkdownNode, PdfNode, TransformNode, ChatNode, AiTransformNode, etc.)

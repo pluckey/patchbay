@@ -61,6 +61,7 @@ export function WorkspaceView() {
     handleExecuteAiTransform,
     handleOutputModeChange,
     handleSchemaChange,
+    handleSchemaModeChange,
   } = useAiTransformHandlers({
     setNodes, nodesRef, connectionsRef, scheduleSave, aiExecutor, roster,
   })
@@ -119,6 +120,7 @@ export function WorkspaceView() {
     onAiAutoExecuteToggle: handleAiAutoExecuteToggle,
     onAiOutputModeChange: handleOutputModeChange,
     onAiSchemaChange: handleSchemaChange,
+    onAiSchemaModeChange: handleSchemaModeChange,
     onAiExecute: executeAiTransform,
     roster,
     onCreateConnection: handleCreateConnection,

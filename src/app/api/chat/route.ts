@@ -16,7 +16,7 @@ const adapterMap: Record<ProviderConfig["adapterType"], (params: ChatParams, con
   }),
 }
 
-type StructuredParams = ChatParams & { schema: SchemaField[] }
+type StructuredParams = ChatParams & { schema: SchemaField[]; schemaMode: "single" | "collection" }
 
 const structuredAdapterMap: Record<ProviderConfig["adapterType"], (params: StructuredParams, config: ProviderConfig) => Promise<string>> = {
   "anthropic-native": (params) => generateStructuredAnthropic(params),
@@ -29,7 +29,7 @@ const structuredAdapterMap: Record<ProviderConfig["adapterType"], (params: Struc
 
 export async function POST(request: Request) {
   const body = await request.json()
-  const { messages, systemPrompt, model, provider, schema } = body
+  const { messages, systemPrompt, model, provider, schema, schemaMode } = body
 
   if (!Array.isArray(messages) || typeof model !== "string" || !model) {
     return new Response("Missing required fields: messages (array) and model (string)", { status: 400 })
@@ -53,7 +53,8 @@ export async function POST(request: Request) {
   if (Array.isArray(schema) && schema.length > 0) {
     try {
       const generate = structuredAdapterMap[providerConfig.adapterType]
-      const jsonString = await generate({ messages, systemPrompt, model, schema }, providerConfig)
+      const resolvedMode = schemaMode === "collection" ? "collection" as const : "single" as const
+      const jsonString = await generate({ messages, systemPrompt, model, schema, schemaMode: resolvedMode }, providerConfig)
       return new Response(jsonString, {
         headers: { "Content-Type": "application/json; charset=utf-8" },
       })

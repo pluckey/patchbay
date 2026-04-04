@@ -8,7 +8,7 @@ type SchemaBuilderProps = {
   onChange: (schema: SchemaField[]) => void
 }
 
-const FIELD_TYPES: SchemaFieldType[] = ["string", "number", "boolean"]
+const FIELD_TYPES: SchemaFieldType[] = ["string", "number", "boolean", "string[]", "number[]", "boolean[]"]
 
 export function SchemaBuilder({ schema, onChange }: SchemaBuilderProps) {
   const handleAddField = useCallback(() => {

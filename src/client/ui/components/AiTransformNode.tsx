@@ -12,10 +12,10 @@ import type { ModelRosterEntry, SchemaField } from "@/kernel/entities"
 function AiTransformNodeInner({ data }: NodeProps) {
   const {
     nodeId, instruction, provider, model, autoExecute, inputMode,
-    outputMode, schema, roster, inputLegend, result,
+    outputMode, schemaMode, schema, roster, inputLegend, result,
     onInstructionChange, onModelChange, onInputModeChange,
     onAutoExecuteToggle, onOutputModeChange, onSchemaChange,
-    onExecute, onDelete, onResizeEnd,
+    onSchemaModeChange, onExecute, onDelete, onResizeEnd,
   } = data as unknown as AiTransformFlowNodeData
 
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -42,7 +42,7 @@ function AiTransformNodeInner({ data }: NodeProps) {
   const parsedStructuredData = useMemo(() => {
     if (outputMode !== "structured" || result?.status !== "success" || !result.output) return null
     try {
-      return JSON.parse(result.output) as Record<string, unknown>
+      return JSON.parse(result.output) as Record<string, unknown> | Record<string, unknown>[]
     } catch {
       return null
     }
@@ -176,7 +176,16 @@ function AiTransformNodeInner({ data }: NodeProps) {
         {/* Schema builder (structured mode only) */}
         {outputMode === "structured" && (
           <div className="px-3 py-2 border-b border-border">
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Schema</div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Schema</span>
+              <button
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={() => onSchemaModeChange(nodeId, schemaMode === "single" ? "collection" : "single")}
+                className={`text-[10px] px-1.5 py-0.5 rounded nodrag ${schemaMode === "collection" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+              >
+                {schemaMode === "collection" ? "collection" : "single"}
+              </button>
+            </div>
             <SchemaBuilder schema={schema} onChange={handleSchemaChange} />
           </div>
         )}

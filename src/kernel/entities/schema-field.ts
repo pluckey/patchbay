@@ -1,4 +1,4 @@
-export type SchemaFieldType = "string" | "number" | "boolean"
+export type SchemaFieldType = "string" | "number" | "boolean" | "string[]" | "number[]" | "boolean[]"
 
 export type SchemaField = {
   name: string

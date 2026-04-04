@@ -16,6 +16,7 @@ export function createAiTransformNode(
     autoExecute: false,
     inputMode: "concat",
     outputMode: "text",
+    schemaMode: "single",
     schema: [],
     position,
     dimensions: { width: 380, height: 400 },

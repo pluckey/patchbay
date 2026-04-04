@@ -10,7 +10,7 @@ export const aiExecutorAdapter: AiExecutorPort = {
         systemPrompt: request.instruction,
         model: request.model,
         provider: request.provider,
-        ...(request.schema ? { schema: request.schema } : {}),
+        ...(request.schema ? { schema: request.schema, schemaMode: request.schemaMode } : {}),
       }),
       signal: request.signal,
     })

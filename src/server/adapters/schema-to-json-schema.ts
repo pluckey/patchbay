@@ -1,18 +1,35 @@
 import type { SchemaField } from "@/kernel/entities"
 
-export function schemaFieldsToJsonSchema(fields: SchemaField[]): Record<string, unknown> {
-  const properties: Record<string, { type: string }> = {}
+export function schemaFieldsToJsonSchema(
+  fields: SchemaField[],
+  mode: "single" | "collection" = "single"
+): Record<string, unknown> {
+  const properties: Record<string, Record<string, unknown>> = {}
   const required: string[] = []
 
   for (const field of fields) {
-    properties[field.name] = { type: field.type }
+    if (field.type.endsWith("[]")) {
+      const itemType = field.type.slice(0, -2)
+      properties[field.name] = { type: "array", items: { type: itemType } }
+    } else {
+      properties[field.name] = { type: field.type }
+    }
     required.push(field.name)
   }
 
-  return {
+  const objectSchema = {
     type: "object",
     properties,
     required,
     additionalProperties: false,
   }
+
+  if (mode === "collection") {
+    return {
+      type: "array",
+      items: objectSchema,
+    }
+  }
+
+  return objectSchema
 }

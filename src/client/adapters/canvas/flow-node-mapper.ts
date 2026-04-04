@@ -66,6 +66,7 @@ export type AiTransformFlowNodeData = {
   autoExecute: boolean
   inputMode: "concat" | "named"
   outputMode: "text" | "structured"
+  schemaMode: "single" | "collection"
   schema: SchemaField[]
   roster: ModelRosterEntry[]
   inputLegend: InputLegendEntry[]
@@ -76,6 +77,7 @@ export type AiTransformFlowNodeData = {
   onAutoExecuteToggle: (nodeId: string) => void
   onOutputModeChange: (nodeId: string, mode: "text" | "structured") => void
   onSchemaChange: (nodeId: string, schema: SchemaField[]) => void
+  onSchemaModeChange: (nodeId: string, schemaMode: "single" | "collection") => void
   onExecute: (nodeId: string) => void
   onDelete: (nodeId: string) => void
   onResizeEnd: (nodeId: string, dimensions: { width: number; height: number }) => void
@@ -105,6 +107,7 @@ type FlowCallbacks = {
   onAiAutoExecuteToggle: (nodeId: string) => void
   onAiOutputModeChange: (nodeId: string, mode: "text" | "structured") => void
   onAiSchemaChange: (nodeId: string, schema: SchemaField[]) => void
+  onAiSchemaModeChange: (nodeId: string, schemaMode: "single" | "collection") => void
   onAiExecute: (nodeId: string) => void
 }
 
@@ -235,6 +238,7 @@ export function toFlowNodes(
             autoExecute: node.autoExecute,
             inputMode: node.inputMode,
             outputMode: node.outputMode,
+            schemaMode: node.schemaMode,
             schema: node.schema,
             roster: roster ?? [],
             inputLegend: aiInputLegend,
@@ -245,6 +249,7 @@ export function toFlowNodes(
             onAutoExecuteToggle: callbacks.onAiAutoExecuteToggle,
             onOutputModeChange: callbacks.onAiOutputModeChange,
             onSchemaChange: callbacks.onAiSchemaChange,
+            onSchemaModeChange: callbacks.onAiSchemaModeChange,
             onExecute: callbacks.onAiExecute,
             onDelete: callbacks.onDelete,
             onResizeEnd: callbacks.onResizeEnd,

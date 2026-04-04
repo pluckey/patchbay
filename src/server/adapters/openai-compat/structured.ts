@@ -11,6 +11,7 @@ type StructuredParams = {
   baseURL: string
   apiKeyEnvVar: string
   schema: SchemaField[]
+  schemaMode: "single" | "collection"
 }
 
 export async function generateStructured(params: StructuredParams): Promise<string> {
@@ -38,7 +39,7 @@ export async function generateStructured(params: StructuredParams): Promise<stri
 
   const result = await generateObject({
     model: provider.chat(params.model),
-    schema: jsonSchema(schemaFieldsToJsonSchema(params.schema)),
+    schema: jsonSchema(schemaFieldsToJsonSchema(params.schema, params.schemaMode)),
     messages,
   })
 

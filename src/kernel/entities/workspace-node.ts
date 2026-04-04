@@ -58,6 +58,7 @@ export type AiTransformNodeData = BaseNode & {
   autoExecute: boolean
   inputMode: "concat" | "named"
   outputMode: "text" | "structured"
+  schemaMode: "single" | "collection"
   schema: SchemaField[]
   result?: TransformResult
 }

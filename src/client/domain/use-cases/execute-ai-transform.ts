@@ -82,13 +82,13 @@ export async function executeAiTransform(
       userMessage: promptResult.userMessage,
       provider: node.provider,
       model: node.model,
-      ...(isStructured ? { schema: node.schema } : {}),
+      ...(isStructured ? { schema: node.schema, schemaMode: node.schemaMode } : {}),
     })
 
     const durationMs = Math.round(performance.now() - startTime)
 
     if (isStructured) {
-      const validation = validateStructuredOutput(output, node.schema)
+      const validation = validateStructuredOutput(output, node.schema, node.schemaMode)
       if (!validation.ok) {
         return { type: "error", nodeId, result: { status: "error", message: `Schema validation failed: ${validation.message}`, durationMs } }
       }

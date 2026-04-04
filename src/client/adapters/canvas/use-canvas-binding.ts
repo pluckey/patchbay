@@ -38,6 +38,7 @@ type UseCanvasBindingArgs = {
   onAiAutoExecuteToggle: (nodeId: string) => void
   onAiOutputModeChange: (nodeId: string, mode: "text" | "structured") => void
   onAiSchemaChange: (nodeId: string, schema: SchemaField[]) => void
+  onAiSchemaModeChange: (nodeId: string, schemaMode: "single" | "collection") => void
   onAiExecute: (nodeId: string) => void
   roster: ModelRosterEntry[]
   onCreateConnection: (sourceId: string, targetId: string) => boolean
@@ -73,6 +74,7 @@ export function useCanvasBinding({
   onAiAutoExecuteToggle,
   onAiOutputModeChange,
   onAiSchemaChange,
+  onAiSchemaModeChange,
   onAiExecute,
   roster,
   onCreateConnection,
@@ -111,9 +113,10 @@ export function useCanvasBinding({
       onAiAutoExecuteToggle,
       onAiOutputModeChange,
       onAiSchemaChange,
+      onAiSchemaModeChange,
       onAiExecute,
     }, pipelineResults, chatSystemPrompts, streamingNodeIds, roster))
-  }, [nodes, connections, pipelineResults, chatSystemPrompts, streamingNodeIds, onContentChange, onDelete, onResize, onNavigatePage, onZoomChange, onDarkModeToggle, onTransformCodeChange, onTimeoutChange, onRerun, onSendMessage, onResetChat, onModelChange, onAnnotationCreate, onAnnotationDelete, onAnnotationEdit, onAiInstructionChange, onAiModelChange, onAiInputModeChange, onAiAutoExecuteToggle, onAiOutputModeChange, onAiSchemaChange, onAiExecute, roster])
+  }, [nodes, connections, pipelineResults, chatSystemPrompts, streamingNodeIds, onContentChange, onDelete, onResize, onNavigatePage, onZoomChange, onDarkModeToggle, onTransformCodeChange, onTimeoutChange, onRerun, onSendMessage, onResetChat, onModelChange, onAnnotationCreate, onAnnotationDelete, onAnnotationEdit, onAiInstructionChange, onAiModelChange, onAiInputModeChange, onAiAutoExecuteToggle, onAiOutputModeChange, onAiSchemaChange, onAiSchemaModeChange, onAiExecute, roster])
 
   // Sync domain connections → flow edges
   const [flowEdges, setFlowEdges] = useState<Edge[]>([])

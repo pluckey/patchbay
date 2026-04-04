@@ -12,6 +12,7 @@ import { toggleAutoExecute } from "@/kernel/transforms/toggle-auto-execute"
 import { updateAiInputMode } from "@/kernel/transforms/update-ai-input-mode"
 import { updateOutputMode } from "@/kernel/transforms/update-output-mode"
 import { updateSchema } from "@/kernel/transforms/update-schema"
+import { updateSchemaMode } from "@/kernel/transforms/update-schema-mode"
 import { executeAiTransform } from "@/client/domain/use-cases/execute-ai-transform"
 
 type UseAiTransformHandlersArgs = {
@@ -137,6 +138,17 @@ export function useAiTransformHandlers({
     [setNodes, scheduleSave]
   )
 
+  const handleSchemaModeChange = useCallback(
+    (nodeId: string, schemaMode: "single" | "collection") => {
+      setNodes((prev) => {
+        const updated = updateSchemaMode(prev, nodeId, schemaMode)
+        scheduleSave(updated)
+        return updated
+      })
+    },
+    [setNodes, scheduleSave]
+  )
+
   return {
     handleAddAiTransformNode,
     handleAiInstructionChange,
@@ -146,5 +158,6 @@ export function useAiTransformHandlers({
     handleExecuteAiTransform,
     handleOutputModeChange,
     handleSchemaChange,
+    handleSchemaModeChange,
   }
 }

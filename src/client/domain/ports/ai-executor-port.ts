@@ -6,6 +6,7 @@ export type AiExecuteRequest = {
   provider: string
   model: string
   schema?: SchemaField[]
+  schemaMode?: "single" | "collection"
   signal?: AbortSignal
 }
 

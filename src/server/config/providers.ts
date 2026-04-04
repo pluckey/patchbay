@@ -39,6 +39,7 @@ export const PROVIDER_CONFIG: Record<string, ProviderConfig> = {
 // ---------------------------------------------------------------------------
 
 export const MODEL_ROSTER: ModelRosterEntry[] = [
+  { provider: "anthropic", model: "claude-opus-4-6", displayName: "Claude Opus 4.6" },
   { provider: "anthropic", model: "claude-sonnet-4-20250514", displayName: "Claude Sonnet 4" },
   { provider: "anthropic", model: "claude-haiku-4-5-20251001", displayName: "Claude Haiku 4.5" },
   { provider: "openai", model: "gpt-4o", displayName: "GPT-4o" },

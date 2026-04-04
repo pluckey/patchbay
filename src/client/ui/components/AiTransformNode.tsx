@@ -12,13 +12,14 @@ import type { ModelRosterEntry, SchemaField } from "@/kernel/entities"
 function AiTransformNodeInner({ data }: NodeProps) {
   const {
     nodeId, instruction, provider, model, autoExecute, inputMode,
-    outputMode, schemaMode, schema, roster, inputLegend, result,
+    outputMode, schemaMode, schema, roster, inputLegend, inputPreview, result,
     onInstructionChange, onModelChange, onInputModeChange,
     onAutoExecuteToggle, onOutputModeChange, onSchemaChange,
     onSchemaModeChange, onExecute, onDelete, onResizeEnd,
   } = data as unknown as AiTransformFlowNodeData
 
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
 
   const handleSelectModel = (entry: ModelRosterEntry) => {
     onModelChange(nodeId, entry.provider, entry.model)
@@ -148,6 +149,30 @@ function AiTransformNodeInner({ data }: NodeProps) {
                 </span>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Input preview */}
+        {Object.keys(inputPreview).length > 0 && (
+          <div className="px-3 py-1.5 border-b border-border">
+            <button
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={() => setPreviewOpen((p) => !p)}
+              className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1 nodrag"
+            >
+              <span className={`inline-block transition-transform ${previewOpen ? "rotate-90" : ""}`}>&#9654;</span>
+              Input Preview
+            </button>
+            {previewOpen && (
+              <div className="mt-1 max-h-[200px] overflow-auto">
+                {Object.entries(inputPreview).map(([label, text]) => (
+                  <div key={label} className="mb-1.5 last:mb-0">
+                    <div className="text-[10px] text-muted-foreground font-medium">{label}</div>
+                    <pre className="text-[11px] font-mono text-foreground/70 whitespace-pre-wrap break-words max-h-[80px] overflow-auto">{text.slice(0, 500)}{text.length > 500 ? "..." : ""}</pre>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

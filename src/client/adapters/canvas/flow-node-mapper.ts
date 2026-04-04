@@ -70,6 +70,7 @@ export type AiTransformFlowNodeData = {
   schema: SchemaField[]
   roster: ModelRosterEntry[]
   inputLegend: InputLegendEntry[]
+  inputPreview: Record<string, string>
   result?: TransformResult
   onInstructionChange: (nodeId: string, instruction: string) => void
   onModelChange: (nodeId: string, provider: string, model: string) => void
@@ -227,6 +228,19 @@ export function toFlowNodes(
           return { label: c.label, sourceName, sourceType: src?.type ?? "unknown" }
         })
 
+        const aiInputPreview: Record<string, string> = {}
+        for (const c of aiIncomingConns) {
+          const src = nodes.find((n) => n.id === c.sourceId)
+          if (!src) continue
+          if (src.type === "markdown") aiInputPreview[c.label] = src.content
+          else if (src.type === "transform") {
+            const r = pipelineResults?.get(src.id)
+            aiInputPreview[c.label] = r?.status === "success" ? r.output : ""
+          }
+          else if (src.type === "ai-transform" && src.result?.status === "success") aiInputPreview[c.label] = src.result.output
+          else if (src.type === "pdf") aiInputPreview[c.label] = `[PDF: ${src.filename}, page ${src.currentPage}/${src.totalPages}]`
+        }
+
         return {
           ...base,
           type: "aiTransformNode",
@@ -242,6 +256,7 @@ export function toFlowNodes(
             schema: node.schema,
             roster: roster ?? [],
             inputLegend: aiInputLegend,
+            inputPreview: aiInputPreview,
             result: node.result,
             onInstructionChange: callbacks.onAiInstructionChange,
             onModelChange: callbacks.onAiModelChange,

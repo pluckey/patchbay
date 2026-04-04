@@ -18,7 +18,7 @@ export function validateConnection(
   // Transform nodes can have an incoming connection; content nodes with
   // an existing incoming are blocked (v1: one incoming per content node)
   const targetNode = nodes.find((n) => n.id === targetId)
-  if (targetNode && targetNode.type !== "transform") {
+  if (targetNode && targetNode.type !== "transform" && targetNode.type !== "ai-transform") {
     if (connections.some((c) => c.targetId === targetId)) {
       return { valid: false, reason: "This node already has an incoming connection." }
     }

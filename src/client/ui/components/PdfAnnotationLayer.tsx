@@ -19,7 +19,7 @@ type PdfAnnotationLayerProps = {
   onDelete: (annotationId: string) => void
   onEdit: (annotationId: string) => void
   onStartGripResize?: (gripId: GripId, e: React.PointerEvent) => void
-  onEditGripResize?: (gripId: string, e: React.PointerEvent) => void
+  onEditGripResize?: (gripId: GripId, e: React.PointerEvent) => void
   onConfirmRect?: () => void
   drawHandlers?: {
     onPointerDown: (e: React.PointerEvent) => void

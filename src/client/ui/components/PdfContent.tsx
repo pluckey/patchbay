@@ -3,11 +3,11 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { usePdfViewer } from "@/client/ui/hooks/use-pdf-viewer"
 import { usePdfSearch } from "@/client/ui/hooks/use-pdf-search"
-import { usePdfAnnotationDraw } from "@/client/ui/hooks/use-pdf-annotation-draw"
+import { usePdfAnnotationDraw, type GripId } from "@/client/ui/hooks/use-pdf-annotation-draw"
 import { useAdapters } from "@/client/ui/app/adapters-context"
 import type { PdfOutlineItem, PdfAnnotation, PdfTextItem, PdfRegion } from "@/kernel/entities"
 import { extractRegionText } from "@/kernel/transforms/extract-region-text"
-import { screenToPdf, pdfToScreen } from "./pdf-coordinates"
+import { screenToPdf, pdfToScreen, svgLocalCoords } from "./pdf-coordinates"
 import { PdfSearchBar } from "./PdfSearchBar"
 import { PdfTableOfContents } from "./PdfTableOfContents"
 import { PdfPageNav } from "./PdfPageNav"
@@ -172,60 +172,54 @@ export function PdfContent({
   // Editing existing annotation — supports both label and region editing
   const editingAnnotation = editingAnnotationId ? pageAnnotations.find((a) => a.id === editingAnnotationId) : null
 
-  // Initialize editing region in screen coords when editing starts
-  useEffect(() => {
-    if (editingAnnotation && pageDims && renderScale > 0) {
-      setEditingRegionScreen(pdfToScreen(editingAnnotation.region, renderScale, pageDims.height))
-    } else {
-      setEditingRegionScreen(null)
+  // Start editing: initialize screen rect imperatively (Fix #5 — no eslint-disable needed)
+  const startEditing = useCallback((id: string) => {
+    cancelLabel()
+    const ann = pageAnnotations.find((a) => a.id === id)
+    if (ann && pageDims && renderScale > 0) {
+      setEditingRegionScreen(pdfToScreen(ann.region, renderScale, pageDims.height))
     }
-  }, [editingAnnotationId]) // eslint-disable-line react-hooks/exhaustive-deps
+    setEditingAnnotationId(id)
+  }, [pageAnnotations, pageDims, renderScale, cancelLabel])
 
   const editPosition = useMemo(() => {
     if (!editingRegionScreen) return null
     return { x: editingRegionScreen.x, y: editingRegionScreen.y + editingRegionScreen.height }
   }, [editingRegionScreen])
 
-  // Grip resize for editing — reuse the same grip handler pattern
+  // Edit grip resize — uses ref + document listeners with unmount cleanup
+  const editDragCleanupRef = useRef<(() => void) | null>(null)
+
+  // Cleanup on unmount or when editing ends
+  useEffect(() => {
+    if (!editingAnnotationId) {
+      editDragCleanupRef.current?.()
+      editDragCleanupRef.current = null
+    }
+    return () => {
+      editDragCleanupRef.current?.()
+      editDragCleanupRef.current = null
+    }
+  }, [editingAnnotationId])
+
+  const editingRegionRef = useRef(editingRegionScreen)
+  editingRegionRef.current = editingRegionScreen
+
   const handleEditGripResize = useCallback(
-    (gripId: string, e: React.PointerEvent) => {
-      if (!editingRegionScreen) return
+    (gripId: GripId, e: React.PointerEvent) => {
+      if (!editingRegionRef.current) return
       e.stopPropagation()
       e.preventDefault()
 
-      const svg = (e.currentTarget as SVGElement).ownerSVGElement ?? (e.currentTarget as SVGSVGElement)
-      svg.setPointerCapture?.(e.pointerId)
-
-      const startLocal = (() => {
-        if (svg.createSVGPoint) {
-          try {
-            const pt = svg.createSVGPoint()
-            pt.x = e.clientX; pt.y = e.clientY
-            const ctm = svg.getScreenCTM()
-            if (ctm) { const s = pt.matrixTransform(ctm.inverse()); return { x: s.x, y: s.y } }
-          } catch { /* fall through */ }
-        }
-        const r = svg.getBoundingClientRect()
-        return { x: e.clientX - r.left, y: e.clientY - r.top }
-      })()
-
-      const startRect = { ...editingRegionScreen }
+      const el = e.currentTarget as SVGElement
+      const svg = el.ownerSVGElement ?? el as unknown as SVGSVGElement
+      const startLocal = svgLocalCoords(svg, e.clientX, e.clientY)
+      const startRect = { ...editingRegionRef.current }
 
       const onMove = (me: PointerEvent) => {
-        let local: { x: number; y: number }
-        if (svg.createSVGPoint) {
-          try {
-            const pt = svg.createSVGPoint()
-            pt.x = me.clientX; pt.y = me.clientY
-            const ctm = svg.getScreenCTM()
-            if (ctm) { const s = pt.matrixTransform(ctm.inverse()); local = { x: s.x, y: s.y } }
-            else { const r = svg.getBoundingClientRect(); local = { x: me.clientX - r.left, y: me.clientY - r.top } }
-          } catch { const r = svg.getBoundingClientRect(); local = { x: me.clientX - r.left, y: me.clientY - r.top } }
-        } else {
-          const r = svg.getBoundingClientRect(); local = { x: me.clientX - r.left, y: me.clientY - r.top }
-        }
-        const dx = local!.x - startLocal.x
-        const dy = local!.y - startLocal.y
+        const local = svgLocalCoords(svg, me.clientX, me.clientY)
+        const dx = local.x - startLocal.x
+        const dy = local.y - startLocal.y
         const nr = { ...startRect }
         if (gripId.includes("w")) { nr.x += dx; nr.width -= dx }
         if (gripId.includes("e")) { nr.width += dx }
@@ -236,15 +230,19 @@ export function PdfContent({
         setEditingRegionScreen(nr)
       }
 
-      const onUp = () => {
+      const cleanup = () => {
         document.removeEventListener("pointermove", onMove)
         document.removeEventListener("pointerup", onUp)
+        editDragCleanupRef.current = null
       }
+
+      const onUp = () => cleanup()
 
       document.addEventListener("pointermove", onMove)
       document.addEventListener("pointerup", onUp)
+      editDragCleanupRef.current = cleanup
     },
-    [editingRegionScreen]
+    []
   )
 
   const handleEditConfirm = useCallback(
@@ -383,7 +381,7 @@ export function PdfContent({
             editingRect={editingRegionScreen}
             editingAnnotationId={editingAnnotationId}
             onDelete={onAnnotationDelete}
-            onEdit={(id) => { cancelLabel(); setEditingAnnotationId(id) }}
+            onEdit={startEditing}
             onStartGripResize={startGripResize}
             onEditGripResize={handleEditGripResize}
             onConfirmRect={confirmRect}

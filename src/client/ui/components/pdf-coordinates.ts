@@ -1,5 +1,29 @@
 import type { PdfRegion } from "@/kernel/entities"
 
+/** Convert viewport clientX/clientY to SVG-local coordinates using SVG's CTM */
+export function svgLocalCoords(
+  svg: SVGSVGElement,
+  clientX: number,
+  clientY: number
+): { x: number; y: number } {
+  if (svg.createSVGPoint) {
+    try {
+      const pt = svg.createSVGPoint()
+      pt.x = clientX
+      pt.y = clientY
+      const ctm = svg.getScreenCTM()
+      if (ctm) {
+        const local = pt.matrixTransform(ctm.inverse())
+        return { x: local.x, y: local.y }
+      }
+    } catch {
+      // Singular matrix — fall through
+    }
+  }
+  const rect = svg.getBoundingClientRect()
+  return { x: clientX - rect.left, y: clientY - rect.top }
+}
+
 /** Convert PDF region (origin bottom-left, points) to screen rect (origin top-left, pixels) */
 export function pdfToScreen(
   region: PdfRegion,

@@ -42,26 +42,12 @@ function resizeByGrip(rect: Rect, grip: GripId, dx: number, dy: number): Rect {
   return clampRect(r)
 }
 
-/** Convert viewport clientX/clientY to SVG-local coordinates using SVG's own coordinate transform */
-function toLocal(e: React.PointerEvent, svgOverride?: SVGSVGElement): { x: number; y: number } {
-  const el = svgOverride ?? e.currentTarget as SVGSVGElement
-  const svg = 'ownerSVGElement' in el && el.ownerSVGElement ? el.ownerSVGElement : el as SVGSVGElement
-  if (svg.createSVGPoint) {
-    try {
-      const pt = svg.createSVGPoint()
-      pt.x = e.clientX
-      pt.y = e.clientY
-      const ctm = svg.getScreenCTM()
-      if (ctm) {
-        const svgPt = pt.matrixTransform(ctm.inverse())
-        return { x: svgPt.x, y: svgPt.y }
-      }
-    } catch {
-      // Singular matrix — fall through
-    }
-  }
-  const rect = svg.getBoundingClientRect()
-  return { x: e.clientX - rect.left, y: e.clientY - rect.top }
+import { svgLocalCoords } from "@/client/ui/components/pdf-coordinates"
+
+function toLocal(e: React.PointerEvent): { x: number; y: number } {
+  const el = e.currentTarget as SVGElement
+  const svg = ('ownerSVGElement' in el && el.ownerSVGElement) ? el.ownerSVGElement : el as SVGSVGElement
+  return svgLocalCoords(svg, e.clientX, e.clientY)
 }
 
 export function usePdfAnnotationDraw(

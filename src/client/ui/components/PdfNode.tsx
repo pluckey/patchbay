@@ -13,13 +13,14 @@ function PdfNodeInner({ data }: NodeProps) {
   const {
     nodeId, blobId, filename, currentPage, totalPages, zoomLevel, darkMode,
     annotations, onNavigatePage, onZoomChange, onDarkModeToggle,
-    onAnnotationCreate, onAnnotationDelete, onAnnotationEdit, onDelete, onResizeEnd,
+    onAnnotationCreate, onAnnotationDelete, onAnnotationEdit, onDelete, onDuplicate, onResizeEnd,
   } = data as unknown as PdfFlowNodeData
 
   return (
     <NodeShell
       nodeId={nodeId}
       onDelete={onDelete}
+      onDuplicate={onDuplicate}
       onResizeEnd={onResizeEnd}
       header={
         <div className="px-3 py-2 text-xs text-muted-foreground truncate">

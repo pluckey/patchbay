@@ -18,6 +18,7 @@ type UseCanvasBindingArgs = {
   streamingNodeIds: Set<string>
   onContentChange: (nodeId: string, content: string) => void
   onDelete: (nodeId: string) => void
+  onDuplicate: (nodeId: string) => void
   onMove: (nodeId: string, position: { x: number; y: number }) => void
   onResize: (nodeId: string, dimensions: { width: number; height: number }) => void
   onNavigatePage: (nodeId: string, page: number) => void
@@ -54,6 +55,7 @@ export function useCanvasBinding({
   streamingNodeIds,
   onContentChange,
   onDelete,
+  onDuplicate,
   onMove,
   onResize,
   onNavigatePage,
@@ -94,6 +96,7 @@ export function useCanvasBinding({
     setFlowNodes(toFlowNodes(nodes, connections, {
       onContentChange,
       onDelete,
+      onDuplicate,
       onResizeEnd: onResize,
       onNavigatePage,
       onZoomChange,
@@ -116,7 +119,7 @@ export function useCanvasBinding({
       onAiSchemaModeChange,
       onAiExecute,
     }, pipelineResults, chatSystemPrompts, streamingNodeIds, roster))
-  }, [nodes, connections, pipelineResults, chatSystemPrompts, streamingNodeIds, onContentChange, onDelete, onResize, onNavigatePage, onZoomChange, onDarkModeToggle, onTransformCodeChange, onTimeoutChange, onRerun, onSendMessage, onResetChat, onModelChange, onAnnotationCreate, onAnnotationDelete, onAnnotationEdit, onAiInstructionChange, onAiModelChange, onAiInputModeChange, onAiAutoExecuteToggle, onAiOutputModeChange, onAiSchemaChange, onAiSchemaModeChange, onAiExecute, roster])
+  }, [nodes, connections, pipelineResults, chatSystemPrompts, streamingNodeIds, onContentChange, onDelete, onDuplicate, onResize, onNavigatePage, onZoomChange, onDarkModeToggle, onTransformCodeChange, onTimeoutChange, onRerun, onSendMessage, onResetChat, onModelChange, onAnnotationCreate, onAnnotationDelete, onAnnotationEdit, onAiInstructionChange, onAiModelChange, onAiInputModeChange, onAiAutoExecuteToggle, onAiOutputModeChange, onAiSchemaChange, onAiSchemaModeChange, onAiExecute, roster])
 
   // Sync domain connections → flow edges
   const [flowEdges, setFlowEdges] = useState<Edge[]>([])

@@ -6,6 +6,7 @@ import { NodeResizer, Handle, Position } from "@xyflow/react"
 type NodeShellProps = {
   nodeId: string
   onDelete: (nodeId: string) => void
+  onDuplicate: (nodeId: string) => void
   onResizeEnd: (nodeId: string, dimensions: { width: number; height: number }) => void
   header?: ReactNode
   children: ReactNode
@@ -14,6 +15,7 @@ type NodeShellProps = {
 export function NodeShell({
   nodeId,
   onDelete,
+  onDuplicate,
   onResizeEnd,
   header,
   children,
@@ -51,12 +53,20 @@ export function NodeShell({
       />
 
       {isHovered && (
-        <button
-          onClick={handleDelete}
-          className="absolute -top-2 -right-2 w-5 h-5 bg-destructive text-destructive-foreground rounded-full text-xs flex items-center justify-center hover:opacity-90 z-10"
-        >
-          x
-        </button>
+        <div className="absolute -top-2 -right-2 flex items-center gap-1 z-10">
+          <button
+            onClick={(e) => { e.stopPropagation(); onDuplicate(nodeId) }}
+            className="w-5 h-5 bg-muted text-muted-foreground border border-border rounded-full text-xs flex items-center justify-center hover:text-foreground"
+          >
+            ⧉
+          </button>
+          <button
+            onClick={handleDelete}
+            className="w-5 h-5 bg-destructive text-destructive-foreground rounded-full text-xs flex items-center justify-center hover:opacity-90"
+          >
+            x
+          </button>
+        </div>
       )}
 
       {header && (

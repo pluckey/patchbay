@@ -37,11 +37,25 @@ export async function generateStructured(params: StructuredParams): Promise<stri
     messages.push({ role: m.role, content: m.content })
   }
 
+  const isCollection = params.schemaMode === "collection"
+  const objectSchema = schemaFieldsToJsonSchema(params.schema, "single")
+
+  // OpenAI requires top-level type:"object" in JSON schema.
+  // For collection mode, wrap the array in an object with an "items" property, then unwrap.
+  const schema = isCollection
+    ? { type: "object", properties: { items: { type: "array", items: objectSchema } }, required: ["items"], additionalProperties: false }
+    : objectSchema
+
   const result = await generateObject({
     model: provider.chat(params.model),
-    schema: jsonSchema(schemaFieldsToJsonSchema(params.schema, params.schemaMode)),
+    schema: jsonSchema(schema),
     messages,
   })
+
+  if (isCollection) {
+    const wrapper = result.object as Record<string, unknown>
+    return JSON.stringify(wrapper.items)
+  }
 
   return JSON.stringify(result.object)
 }

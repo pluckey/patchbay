@@ -13,7 +13,7 @@ type Tab = "chat" | "details"
 function ChatNodeInner({ data }: NodeProps) {
   const {
     nodeId, messages, provider, model, roster, systemPrompt, isStreaming,
-    onSendMessage, onResetChat, onModelChange, onDelete, onResizeEnd,
+    onSendMessage, onResetChat, onModelChange, onDelete, onDuplicate, onResizeEnd,
   } = data as unknown as ChatFlowNodeData
 
   const [draft, setDraft] = useState("")
@@ -145,7 +145,7 @@ function ChatNodeInner({ data }: NodeProps) {
   )
 
   return (
-    <NodeShell nodeId={nodeId} onDelete={onDelete} onResizeEnd={onResizeEnd} header={header}>
+    <NodeShell nodeId={nodeId} onDelete={onDelete} onDuplicate={onDuplicate} onResizeEnd={onResizeEnd} header={header}>
       <div className="flex flex-col h-full" style={{ minHeight: 0 }}>
         {tab === "details" ? (
           <DetailsTab

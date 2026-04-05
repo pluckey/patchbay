@@ -22,6 +22,7 @@ import { updateAnnotationLabel } from "@/kernel/transforms/update-annotation-lab
 import { updateAnnotationRegion } from "@/kernel/transforms/update-annotation-region"
 import { createChatNode } from "@/kernel/transforms/create-chat-node"
 import { updateChatModel } from "@/kernel/transforms/update-chat-model"
+import { duplicateNode } from "@/kernel/transforms/duplicate-node"
 import { removeNodeWithCleanup } from "@/client/domain/use-cases/remove-node-with-cleanup"
 import { sendChatMessage } from "@/client/domain/use-cases/send-chat-message"
 import { useAdapters } from "@/client/ui/app/adapters-context"
@@ -84,6 +85,20 @@ export function useWorkspace({ getViewport }: UseWorkspaceArgs) {
       })
     },
     [setNodes, setConnections, connectionsRef, blobStorage, scheduleSave]
+  )
+
+  const handleDuplicateNode = useCallback(
+    (nodeId: string) => {
+      setNodes((prev) => {
+        const node = prev.find((n) => n.id === nodeId)
+        if (!node) return prev
+        const copy = duplicateNode(node)
+        const updated = [...prev, copy]
+        scheduleSave(updated)
+        return updated
+      })
+    },
+    [setNodes, scheduleSave]
   )
 
   const handleMove = useCallback(
@@ -334,6 +349,7 @@ export function useWorkspace({ getViewport }: UseWorkspaceArgs) {
     handleCreate,
     handleContentChange,
     handleDelete,
+    handleDuplicateNode,
     handleMove,
     handleResize,
     handleNavigatePage,

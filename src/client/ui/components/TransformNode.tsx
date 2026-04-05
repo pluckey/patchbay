@@ -25,7 +25,7 @@ function formatDuration(ms: number): string {
 function TransformNodeInner({ data }: NodeProps) {
   const {
     nodeId, transformCode, timeoutMs, transformResult, inputLegend,
-    onTransformCodeChange, onTimeoutChange, onRerun, onDelete, onResizeEnd,
+    onTransformCodeChange, onTimeoutChange, onRerun, onDelete, onDuplicate, onResizeEnd,
   } = data as unknown as TransformFlowNodeData
 
   const [isEditing, setIsEditing] = useState(false)
@@ -81,7 +81,7 @@ function TransformNodeInner({ data }: NodeProps) {
   )
 
   return (
-    <NodeShell nodeId={nodeId} onDelete={onDelete} onResizeEnd={onResizeEnd} header={header}>
+    <NodeShell nodeId={nodeId} onDelete={onDelete} onDuplicate={onDuplicate} onResizeEnd={onResizeEnd} header={header}>
       <div className="p-2 gap-1 h-full" style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
         {/* Input legend */}
         {inputLegend.length > 0 && (

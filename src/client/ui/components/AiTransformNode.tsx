@@ -15,7 +15,7 @@ function AiTransformNodeInner({ data }: NodeProps) {
     outputMode, schemaMode, schema, roster, inputLegend, inputPreview, result,
     onInstructionChange, onModelChange, onInputModeChange,
     onAutoExecuteToggle, onOutputModeChange, onSchemaChange,
-    onSchemaModeChange, onExecute, onDelete, onResizeEnd,
+    onSchemaModeChange, onExecute, onDelete, onDuplicate, onResizeEnd,
   } = data as unknown as AiTransformFlowNodeData
 
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -136,7 +136,7 @@ function AiTransformNodeInner({ data }: NodeProps) {
   )
 
   return (
-    <NodeShell nodeId={nodeId} onDelete={onDelete} onResizeEnd={onResizeEnd} header={header}>
+    <NodeShell nodeId={nodeId} onDelete={onDelete} onDuplicate={onDuplicate} onResizeEnd={onResizeEnd} header={header}>
       <div className="flex flex-col gap-0 h-full">
         {/* Input legend */}
         {inputLegend.length > 0 && (

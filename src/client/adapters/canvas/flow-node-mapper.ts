@@ -6,6 +6,7 @@ export type MarkdownFlowNodeData = {
   content: string
   onContentChange: (nodeId: string, content: string) => void
   onDelete: (nodeId: string) => void
+  onDuplicate: (nodeId: string) => void
   onResizeEnd: (nodeId: string, dimensions: { width: number; height: number }) => void
 }
 
@@ -25,6 +26,7 @@ export type PdfFlowNodeData = {
   onAnnotationDelete: (nodeId: string, annotationId: string) => void
   onAnnotationEdit: (nodeId: string, annotationId: string, label: string, region?: PdfRegion) => void
   onDelete: (nodeId: string) => void
+  onDuplicate: (nodeId: string) => void
   onResizeEnd: (nodeId: string, dimensions: { width: number; height: number }) => void
 }
 
@@ -40,6 +42,7 @@ export type TransformFlowNodeData = {
   onTimeoutChange: (nodeId: string, timeoutMs: number) => void
   onRerun: (nodeId: string) => void
   onDelete: (nodeId: string) => void
+  onDuplicate: (nodeId: string) => void
   onResizeEnd: (nodeId: string, dimensions: { width: number; height: number }) => void
 }
 
@@ -55,6 +58,7 @@ export type ChatFlowNodeData = {
   onResetChat: (nodeId: string) => void
   onModelChange: (nodeId: string, provider: string, model: string) => void
   onDelete: (nodeId: string) => void
+  onDuplicate: (nodeId: string) => void
   onResizeEnd: (nodeId: string, dimensions: { width: number; height: number }) => void
 }
 
@@ -81,6 +85,7 @@ export type AiTransformFlowNodeData = {
   onSchemaModeChange: (nodeId: string, schemaMode: "single" | "collection") => void
   onExecute: (nodeId: string) => void
   onDelete: (nodeId: string) => void
+  onDuplicate: (nodeId: string) => void
   onResizeEnd: (nodeId: string, dimensions: { width: number; height: number }) => void
 }
 
@@ -89,6 +94,7 @@ export type FlowNodeData = MarkdownFlowNodeData | PdfFlowNodeData | TransformFlo
 type FlowCallbacks = {
   onContentChange: (nodeId: string, content: string) => void
   onDelete: (nodeId: string) => void
+  onDuplicate: (nodeId: string) => void
   onResizeEnd: (nodeId: string, dimensions: { width: number; height: number }) => void
   onNavigatePage: (nodeId: string, page: number) => void
   onZoomChange: (nodeId: string, zoomLevel: number) => void
@@ -138,6 +144,7 @@ export function toFlowNodes(
           content: node.content,
           onContentChange: callbacks.onContentChange,
           onDelete: callbacks.onDelete,
+          onDuplicate: callbacks.onDuplicate,
           onResizeEnd: callbacks.onResizeEnd,
         }
         return { ...base, type: "markdownNode", data }
@@ -162,6 +169,7 @@ export function toFlowNodes(
             onAnnotationDelete: callbacks.onAnnotationDelete,
             onAnnotationEdit: callbacks.onAnnotationEdit,
             onDelete: callbacks.onDelete,
+            onDuplicate: callbacks.onDuplicate,
             onResizeEnd: callbacks.onResizeEnd,
           } satisfies PdfFlowNodeData,
         }
@@ -192,6 +200,7 @@ export function toFlowNodes(
             onTimeoutChange: callbacks.onTimeoutChange,
             onRerun: callbacks.onRerun,
             onDelete: callbacks.onDelete,
+            onDuplicate: callbacks.onDuplicate,
             onResizeEnd: callbacks.onResizeEnd,
           } satisfies TransformFlowNodeData,
         }
@@ -214,6 +223,7 @@ export function toFlowNodes(
             onResetChat: callbacks.onResetChat,
             onModelChange: callbacks.onModelChange,
             onDelete: callbacks.onDelete,
+            onDuplicate: callbacks.onDuplicate,
             onResizeEnd: callbacks.onResizeEnd,
           } satisfies ChatFlowNodeData,
         }
@@ -267,6 +277,7 @@ export function toFlowNodes(
             onSchemaModeChange: callbacks.onAiSchemaModeChange,
             onExecute: callbacks.onAiExecute,
             onDelete: callbacks.onDelete,
+            onDuplicate: callbacks.onDuplicate,
             onResizeEnd: callbacks.onResizeEnd,
           } satisfies AiTransformFlowNodeData,
         }

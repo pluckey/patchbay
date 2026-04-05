@@ -8,5 +8,5 @@ export interface StoragePort {
    * This ensures data safety during beforeunload, where async work cannot
    * be awaited.
    */
-  save(workspace: Workspace): Promise<void>
+  save(workspace: Workspace, deletedIds?: string[]): Promise<void>
 }

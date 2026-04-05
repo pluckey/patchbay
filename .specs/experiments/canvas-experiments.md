@@ -244,6 +244,129 @@ You need a workspace with at least one source of rich text content (a PDF or a f
 
 ---
 
+## Experiment 11: The Hermeneutic Accumulator
+
+**Principle tested:** Understanding is circular — parts are understood through the whole, and the whole through the parts. Each pass through the circle changes both. (Gadamer)
+
+**Build this layout (10-12 nodes, two columns with a growing bridge):**
+
+**Left column — the reading increments (you build these one at a time):**
+
+1. **Markdown** ("Section 1") — paste the first section of a text you haven't read before. A chapter, an essay, a paper — anything dense enough to reward re-reading. Do NOT paste the whole text. Only the first section.
+
+**Right column — the processing chain (build this once, it processes every increment):**
+
+2. **Markdown** ("Running Understanding") — start with a single sentence: "I have not yet read this text." This node is *yours*. You will rewrite it by hand after each cycle.
+3. **AI Transform** (text, named mode) — *Instruction:* "You are receiving a new section of a text and the reader's current understanding of the text so far. Do three things: (1) Identify what in this new section CONFIRMS the current understanding. (2) Identify what SURPRISES — contradicts, complicates, or extends the current understanding. (3) Generate three questions this section raises that only later sections could answer." Connect "Section 1" labeled `new_section`. Connect "Running Understanding" labeled `understanding`.
+4. **AI Transform** (structured, single) — *Instruction:* "Given this analysis, produce a revised model of the text's argument so far." *Schema:* `thesis` (string), `key_claims` (string), `open_questions` (string), `confidence` (number), `revision_count` (number)
+5. **Chat** — connect node 4 as system prompt. This is your conversation with the evolving model. Ask it: "What would change your confidence score the most?" or "What are you most wrong about?"
+
+**Arrange** the left column as a vertical stack growing downward — each new section below the last. The right column sits to the right, fixed in place. Connections reach horizontally from left to right. The spatial shape is a *timeline* — the left side grows, the right side deepens.
+
+**The loop (this is the experiment — repeat for each section of the text):**
+- Read the AI analysis (node 3). Read the structured model (node 4). Chat with it (node 5).
+- Now rewrite "Running Understanding" (node 2) *in your own words*. Do not copy the AI's output. Write what *you* now understand. Include what you think is coming next.
+- Add a new **Markdown** node ("Section 2") below Section 1 in the left column. Paste the next section of the text.
+- Disconnect the previous section from node 3. Connect the new section node to node 3 labeled `new_section`. (The `understanding` connection stays.)
+- Run node 3. Watch the analysis update against your revised understanding. Run node 4. Chat in node 5.
+- Repeat. Section 3, Section 4, onward.
+
+**Observe:**
+- Watch the `confidence` score in node 4 across iterations. Does it climb steadily, or does it drop when a new section overturns assumptions? The shape of the curve *is* the reading experience.
+- Compare your handwritten "Running Understanding" to the AI's structured model. Where do they diverge? You are the hermeneutic circle's engine — the AI is only a mirror. When the mirror disagrees with you, who is right?
+- By the final section, your left column is a visible *chronology* of the reading. The spatial layout encodes something a chat transcript never could: the order in which understanding was constructed. Try reading the left column bottom-to-top. Does the text mean something different backward?
+
+---
+
+## Experiment 12: The Distractor Factory
+
+**Principle tested:** The observer contaminates the observation. A test question written "forward" — correct answer first, distractors after — leaks the author's certainty into the surface form of the options. Only by inverting the sequence can the instrument become invisible. (von Foerster)
+
+**Build this pipeline (10 nodes, diamond fan-out):**
+
+**Row 1 — source and extraction (left to right):**
+
+1. **Markdown** — paste a dense paragraph from your source text. Choose something with at least 3-4 important concepts. This is the territory the question will test.
+2. **AI Transform** (structured, collection) — *Instruction:* "Extract the key concepts from this text that would be worth testing a learner on. For each, identify what a learner must understand versus what they might misunderstand." *Schema:* `concept` (string), `understanding` (string), `common_misunderstanding` (string)
+
+**Row 2 — MCQ generation (the core technique):**
+
+3. **AI Transform** (structured, single, named mode) — *Instruction:* "You are a psychometrician. Using {{concepts}}, write ONE multiple-choice question. CRITICAL: you MUST write the three WRONG answers FIRST, then the correct answer LAST. This is not arbitrary — writing distractors first prevents the correct answer from being conspicuously polished. For each distractor: name the specific misconception a real learner would hold that makes this wrong answer tempting. The misconception must be plausible, not absurd. All four options (3 distractors + 1 correct) must be similar in: length (within 20%), level of detail, linguistic sophistication, and specificity. The correct answer must NOT be longer, more hedged, or more precise than the distractors." *Schema:* `question` (string), `distractor_a` (string), `misconception_a` (string), `distractor_b` (string), `misconception_b` (string), `distractor_c` (string), `misconception_c` (string), `correct_answer` (string), `correct_rationale` (string)
+
+**Row 3 — quality analysts (fan-out, all four in parallel):**
+
+4. **Transform** (JavaScript) — *"Option Isolator."* Strips the question stem and misconceptions, outputs ONLY the four options with letter labels in shuffled order. This is the input for blind analysis.
+```js
+const mcq = JSON.parse(input.mcq.text)
+const opts = [
+  { text: mcq.correct_answer, key: 'correct' },
+  { text: mcq.distractor_a, key: 'distractor' },
+  { text: mcq.distractor_b, key: 'distractor' },
+  { text: mcq.distractor_c, key: 'distractor' }
+]
+for (let i = opts.length - 1; i > 0; i--) {
+  const j = Math.floor(Math.random() * (i + 1));
+  [opts[i], opts[j]] = [opts[j], opts[i]]
+}
+const letters = ['A', 'B', 'C', 'D']
+const display = opts.map((o, i) => `${letters[i]}. ${o.text}`).join('\n')
+const answer = letters[opts.findIndex(o => o.key === 'correct')]
+return `OPTIONS ONLY (question stem withheld):\n${display}\n\n[answer key: ${answer}]`
+```
+
+5. **AI Transform** (text, named mode) — *"BAS: Blind Answer Selection."* *Instruction:* "You are seeing ONLY the answer options for a multiple-choice question. The question stem has been deliberately withheld. Your task: guess which option is the correct answer based ONLY on how the options read. Which one sounds most 'textbook-correct,' most carefully hedged, most comprehensive? State your guess and explain what surface cues led you to it. {{options}}" Connect node 4 labeled `options`.
+
+6. **AI Transform** (text, named mode) — *"DHI: Distractor Homogeneity."* *Instruction:* "Examine this multiple-choice question. For each of the three distractors, answer: Is this distractor genuinely on-topic with the question, or is it from a different sub-domain? A distractor that is obviously off-topic is a giveaway. Rate each distractor's topical relevance to the question stem on a 1-5 scale and explain. {{mcq}}" Connect node 3 labeled `mcq`.
+
+7. **Transform** (JavaScript) — *"Length and Lexical Analysis."* Deterministic checks for two common MCQ flaws.
+```js
+const mcq = JSON.parse(input.mcq.text)
+const opts = [mcq.distractor_a, mcq.distractor_b, mcq.distractor_c, mcq.correct_answer]
+const lens = opts.map(o => o.length)
+const mean = lens.reduce((a, b) => a + b, 0) / lens.length
+const correctLen = mcq.correct_answer.length
+const lengthRatio = correctLen / mean
+const lengthFlag = lengthRatio > 1.2 || lengthRatio < 0.8
+
+const stem = mcq.question.toLowerCase().split(/\W+/).filter(w => w.length > 3)
+const overlap = opts.map(o => {
+  const words = o.toLowerCase().split(/\W+/).filter(w => w.length > 3)
+  return words.filter(w => stem.includes(w)).length
+})
+const meanOverlap = overlap.reduce((a, b) => a + b, 0) / overlap.length
+const correctOverlap = overlap[3]
+const overlapRatio = meanOverlap > 0 ? correctOverlap / meanOverlap : 0
+const overlapFlag = overlapRatio > 1.5
+
+return `LENGTH ANALYSIS:
+Correct answer: ${correctLen} chars | Mean: ${mean.toFixed(0)} chars | Ratio: ${lengthRatio.toFixed(2)}x
+Flag: ${lengthFlag ? 'YES — correct answer is conspicuously ' + (lengthRatio > 1 ? 'longer' : 'shorter') : 'No — lengths are balanced'}
+
+LEXICAL OVERLAP:
+Stem words shared with correct: ${correctOverlap} | Mean across all: ${meanOverlap.toFixed(1)} | Ratio: ${overlapRatio.toFixed(2)}x
+Flag: ${overlapFlag ? 'YES — correct answer echoes the question stem more than distractors' : 'No — overlap is balanced'}`
+```
+
+**Row 4 — convergence and human review:**
+
+8. **AI Transform** (text, named mode) — *"Quality Verdict."* *Instruction:* "You are a test quality reviewer. You have received four independent analyses of a multiple-choice question: (1) BLIND ANSWER SELECTION — could the correct answer be identified without seeing the question? {{bas}} (2) DISTRACTOR HOMOGENEITY — are all options genuinely on-topic? {{dhi}} (3) STATISTICAL METRICS — length and lexical overlap checks {{metrics}} Original question: {{mcq}} Synthesize a quality verdict. For each analyst that found a problem, explain how the question should be revised. If no analyst found a problem, say so — but also say what that implies about the distractors-first writing technique." Connect node 5 labeled `bas`, node 6 labeled `dhi`, node 7 labeled `metrics`, node 3 labeled `mcq`.
+
+9. **Markdown** ("Your Verdict") — read the quality verdict. Now write your OWN assessment: do you agree? Try answering the question yourself WITHOUT looking at the correct answer. Were you tempted by any distractor? Which one, and why?
+
+10. **AI Transform** (structured, single, named mode) — *"Final Assembly."* *Instruction:* "Given the original MCQ data in {{mcq}} and the human reviewer's notes in {{review}}, produce the final assembled question. Place the correct answer in a random position (A, B, C, or D). Do NOT always put it in position B." *Schema:* `final_question` (string), `option_a` (string), `option_b` (string), `option_c` (string), `option_d` (string), `correct_letter` (string), `quality_notes` (string). Connect node 3 labeled `mcq`, node 9 labeled `review`.
+
+**Arrange** as a diamond. Nodes 1-2 across the top left. Node 3 at the top right. Nodes 4-7 fan out vertically in the middle column, spaced evenly. Node 8 at the bottom center. Nodes 9-10 at the bottom right. The shape makes quality pressure visible: one question enters the top, four lenses examine it in the middle, one verdict emerges below.
+
+**Connect** node 1 → 2. Node 2 → 3 (labeled `concepts`). Node 3 → 4 (labeled `mcq`), → 6 (labeled `mcq`), and → 7 (labeled `mcq`). Node 4 → 5 (labeled `options`). Nodes 5 → 8 (labeled `bas`), 6 → 8 (labeled `dhi`), 7 → 8 (labeled `metrics`). Node 3 → 8 (labeled `mcq`). Node 3 → 10 (labeled `mcq`). Node 9 → 10 (labeled `review`).
+
+**Observe:**
+- Run the pipeline. Did the BAS analyst guess the correct answer? If it did, the distractors-first technique failed for this question — the correct answer is still conspicuously "right-sounding." Rewrite node 3's instruction to be stricter and re-run.
+- Check the length and lexical analyses. Conventional question-writing almost always produces a correct answer that is longer and shares more words with the stem. Did the distractors-first instruction prevent this?
+- Look at the diamond shape on your canvas. The single question at the top fans into four parallel judgments in the middle. This is what peer review looks like when it is spatial rather than sequential. Each analyst is independent — they cannot see each other's output.
+- Try deliberately writing a BAD question: remove the distractors-first instruction from node 3 ("Write a question with a correct answer and three wrong answers"). Run the quality analysts again. Watch the flags light up. The difference makes the technique's value visible.
+
+---
+
 ## Reflection Questions
 
 After running several experiments, consider:

@@ -88,6 +88,7 @@ export function Canvas({ nodes, edges, onNodesChange, onEdgesChange, onNodeDragS
       onConnect={onConnect}
       defaultViewport={initialViewport ?? undefined}
       fitView={!initialViewport}
+      minZoom={0.01}
       fitViewOptions={{ padding: 0.2 }}
       proOptions={{ hideAttribution: true }}
       deleteKeyCode={["Backspace", "Delete"]}

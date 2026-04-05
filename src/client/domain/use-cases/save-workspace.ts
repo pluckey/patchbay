@@ -3,7 +3,8 @@ import type { StoragePort } from "../ports/storage-port"
 
 export async function saveWorkspace(
   storage: StoragePort,
-  workspace: Workspace
+  workspace: Workspace,
+  deletedIds?: string[]
 ): Promise<void> {
-  await storage.save(workspace)
+  await storage.save(workspace, deletedIds)
 }

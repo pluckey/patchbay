@@ -18,3 +18,19 @@ export async function writeWorkspace(json: string): Promise<void> {
   await writeFile(WORKSPACE_TMP, json, "utf-8")
   await rename(WORKSPACE_TMP, WORKSPACE_FILE)
 }
+
+// In-process mutex for serializing read-modify-write operations
+let lockPromise: Promise<void> = Promise.resolve()
+
+export async function withWorkspaceLock<T>(fn: () => Promise<T>): Promise<T> {
+  let resolve: () => void
+  const nextLock = new Promise<void>((r) => { resolve = r })
+  const prevLock = lockPromise
+  lockPromise = nextLock
+  await prevLock
+  try {
+    return await fn()
+  } finally {
+    resolve!()
+  }
+}

@@ -24,6 +24,8 @@ export const localStorageAdapter: StoragePort = {
     }
   },
 
+  // deletedIds is unused: localStorage is a local cache, not a merge endpoint.
+  // The server adapter handles merge-aware saves; this adapter just caches state.
   async save(workspace): Promise<void> {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(toEnvelope(workspace)))

@@ -9,6 +9,11 @@ import type { ChatPort } from "@/client/domain/ports/chat-port"
 import type { ModelRosterPort } from "@/client/domain/ports/model-roster-port"
 import type { AiExecutorPort } from "@/client/domain/ports/ai-executor-port"
 
+export type DeletionManifest = {
+  load: () => string[]
+  save: (ids: string[]) => void
+}
+
 export type Adapters = {
   storage: StoragePort
   blobStorage: BlobStoragePort
@@ -17,6 +22,7 @@ export type Adapters = {
   chat: ChatPort
   modelRoster: ModelRosterPort
   aiExecutor: AiExecutorPort
+  deletionManifest: DeletionManifest
 }
 
 const AdaptersContext = createContext<Adapters | null>(null)

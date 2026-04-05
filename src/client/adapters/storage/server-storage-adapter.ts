@@ -18,22 +18,27 @@ export const serverStorageAdapter: StoragePort = {
     }
   },
 
-  async save(workspace: Workspace): Promise<void> {
-    const json = JSON.stringify(toEnvelope(workspace))
+  async save(workspace: Workspace, deletedIds?: string[]): Promise<void> {
+    const envelope = toEnvelope(workspace)
+    const cacheJson = JSON.stringify(envelope)
 
     // Write-through cache: synchronous localStorage for beforeunload safety
     try {
-      localStorage.setItem(STORAGE_KEY, json)
+      localStorage.setItem(STORAGE_KEY, cacheJson)
     } catch {
       // localStorage full or unavailable — continue with server save
     }
 
-    // Async server persist
+    // Server payload includes transient deletedIds for merge-on-save
+    const serverPayload = deletedIds && deletedIds.length > 0
+      ? JSON.stringify({ ...envelope, deletedIds })
+      : cacheJson
+
     try {
       await fetch("/api/workspace", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: json,
+        body: serverPayload,
       })
     } catch (e) {
       console.error("Failed to save workspace to server:", e)

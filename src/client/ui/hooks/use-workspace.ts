@@ -35,15 +35,15 @@ type UseWorkspaceArgs = {
 }
 
 export function useWorkspace({ getViewport }: UseWorkspaceArgs) {
-  const { storage, blobStorage, pdfRenderer } = useAdapters()
+  const { storage, blobStorage, pdfRenderer, deletionManifest } = useAdapters()
 
   const {
     nodes, setNodes,
     connections, setConnections,
     nodesRef, connectionsRef,
     initialViewport, isLoaded,
-    scheduleSave,
-  } = useWorkspacePersistence({ storage, getViewport })
+    scheduleSave, trackDeletion,
+  } = useWorkspacePersistence({ storage, deletionManifest, getViewport })
 
   const { handleUploadPdf } = usePdfOperations({ blobStorage, pdfRenderer, setNodes, scheduleSave })
   const { roster } = useModelRoster()
@@ -76,6 +76,12 @@ export function useWorkspace({ getViewport }: UseWorkspaceArgs) {
     (nodeId: string) => {
       setNodes((prev) => {
         const { updatedNodes, updatedConnections, blobIdsToDelete } = removeNodeWithCleanup(prev, nodeId, connectionsRef.current)
+        // Track deleted node + any removed connections for merge-aware save
+        trackDeletion(nodeId)
+        const removedConnIds = connectionsRef.current.filter(
+          (c) => !updatedConnections.some((uc) => uc.id === c.id)
+        )
+        for (const c of removedConnIds) trackDeletion(c.id)
         for (const blobId of blobIdsToDelete) {
           blobStorage.delete(blobId).catch(console.error)
         }
@@ -84,7 +90,7 @@ export function useWorkspace({ getViewport }: UseWorkspaceArgs) {
         return updatedNodes
       })
     },
-    [setNodes, setConnections, connectionsRef, blobStorage, scheduleSave]
+    [setNodes, setConnections, connectionsRef, blobStorage, scheduleSave, trackDeletion]
   )
 
   const handleDuplicateNode = useCallback(
@@ -175,13 +181,14 @@ export function useWorkspace({ getViewport }: UseWorkspaceArgs) {
 
   const handleRemoveConnection = useCallback(
     (connectionId: string) => {
+      trackDeletion(connectionId)
       setConnections((prev) => {
         const updated = removeConnection(prev, connectionId)
         scheduleSave(nodesRef.current, updated)
         return updated
       })
     },
-    [setConnections, nodesRef, scheduleSave]
+    [setConnections, nodesRef, scheduleSave, trackDeletion]
   )
 
   const handleTransformCodeChange = useCallback(

@@ -68,11 +68,16 @@ During an active drag, xyflow owns node position transiently (for 60fps). On `on
 
 ### Persistence Pattern
 
-- `StoragePort` interface in `client/domain/ports/`, `localStorageAdapter` in `client/adapters/storage/`
-- localStorage key: `"context-canvas:workspace"`, JSON with `version: 4` envelope
+- `StoragePort` interface in `client/domain/ports/`, adapters in `client/adapters/storage/`
+- Primary: `serverStorageAdapter` (PUT `/api/workspace`), fallback: `localStorageAdapter` (localStorage cache)
+- localStorage key: `"context-canvas:workspace"`, JSON with `version: 9` envelope
 - 300ms trailing-edge debounce on save after any mutation
 - Synchronous `beforeunload` flush to prevent data loss on tab close
 - `load()` returns `null` on any failure (parse error, missing key) — never throws
+- **Merge-on-save**: PUT endpoint reads disk before writing, preserves nodes/connections absent from the incoming payload (unless in `deletedIds`). Merge logic in `server/storage/merge-workspace.ts`, serialized by in-process lock in `server/storage/fs-workspace-store.ts`
+- **External merge endpoint**: POST `/api/workspace/merge` adds nodes/connections by ID (idempotent). Used by CLI tools and agents to write to a live workspace
+- **Deletion manifest**: Client tracks deleted IDs, includes them in save payloads. Persisted to localStorage (`context-canvas:deletedIds`) via `client/adapters/storage/deletion-manifest.ts` for cross-session durability
+- **External node detection**: Client polls server every 2s, absorbs nodes/connections it doesn't have. Skips polling while a save is in-flight
 
 ### Dependency Injection Pattern
 

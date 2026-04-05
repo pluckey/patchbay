@@ -1,4 +1,5 @@
-import { readWorkspace, writeWorkspace } from "@/server/storage/fs-workspace-store"
+import { readWorkspace, writeWorkspace, withWorkspaceLock } from "@/server/storage/fs-workspace-store"
+import { mergeWorkspace } from "@/server/storage/merge-workspace"
 
 export async function GET() {
   const json = await readWorkspace()
@@ -12,8 +13,19 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   try {
-    const body = await request.text()
-    await writeWorkspace(body)
+    const incoming = JSON.parse(await request.text())
+    const deletedIds: string[] = incoming.deletedIds ?? []
+    delete incoming.deletedIds
+
+    await withWorkspaceLock(async () => {
+      const diskRaw = await readWorkspace()
+      const disk = diskRaw ? JSON.parse(diskRaw) : null
+      const merged = disk
+        ? mergeWorkspace(incoming, disk, deletedIds)
+        : incoming
+      await writeWorkspace(JSON.stringify(merged))
+    })
+
     return new Response(null, { status: 204 })
   } catch (e) {
     return new Response(

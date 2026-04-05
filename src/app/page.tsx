@@ -13,6 +13,7 @@ import { jsEvaluator } from "@/client/adapters/execution/js-evaluator"
 import { chatAdapter } from "@/client/adapters/chat/chat-adapter"
 import { modelRosterAdapter } from "@/client/adapters/model-roster/model-roster-adapter"
 import { aiExecutorAdapter } from "@/client/adapters/ai-executor/ai-executor-adapter"
+import { loadManifest, saveManifest } from "@/client/adapters/storage/deletion-manifest"
 import { migrateToServer } from "@/client/domain/use-cases/migrate-to-server"
 
 export default function Home() {
@@ -44,6 +45,7 @@ export default function Home() {
     chat: chatAdapter,
     modelRoster: modelRosterAdapter,
     aiExecutor: aiExecutorAdapter,
+    deletionManifest: { load: loadManifest, save: saveManifest },
   }), [])
 
   if (!migrationComplete) return null

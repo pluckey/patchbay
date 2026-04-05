@@ -5,13 +5,15 @@ import type { WorkspaceNode, Connection, Viewport } from "@/kernel/entities"
 import { loadWorkspace } from "@/client/domain/use-cases/load-workspace"
 import { saveWorkspace } from "@/client/domain/use-cases/save-workspace"
 import type { StoragePort } from "@/client/domain/ports/storage-port"
+import type { DeletionManifest } from "@/client/ui/app/adapters-context"
 
 type UseWorkspacePersistenceArgs = {
   storage: StoragePort
+  deletionManifest: DeletionManifest
   getViewport: () => Viewport
 }
 
-export function useWorkspacePersistence({ storage, getViewport }: UseWorkspacePersistenceArgs) {
+export function useWorkspacePersistence({ storage, deletionManifest, getViewport }: UseWorkspacePersistenceArgs) {
   const [nodes, setNodes] = useState<WorkspaceNode[]>([])
   const [connections, setConnections] = useState<Connection[]>([])
   const [initialViewport, setInitialViewport] = useState<Viewport | null>(null)
@@ -20,12 +22,19 @@ export function useWorkspacePersistence({ storage, getViewport }: UseWorkspacePe
   const connectionsRef = useRef(connections)
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const getViewportRef = useRef(getViewport)
+  const deletedIdsRef = useRef<string[]>([])
+  const saveInFlightRef = useRef(false)
 
   nodesRef.current = nodes
   connectionsRef.current = connections
   getViewportRef.current = getViewport
 
   const isLoadedRef = useRef(false)
+
+  // Load persisted deletion manifest on mount
+  useEffect(() => {
+    deletedIdsRef.current = deletionManifest.load()
+  }, [])
 
   // Load on mount
   useEffect(() => {
@@ -40,23 +49,62 @@ export function useWorkspacePersistence({ storage, getViewport }: UseWorkspacePe
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Debounced save
+  const trackDeletion = useCallback((id: string) => {
+    deletedIdsRef.current = [...deletedIdsRef.current, id]
+    deletionManifest.save(deletedIdsRef.current)
+  }, [])
+
+  // Debounced save — includes deletion manifest
   const scheduleSave = useCallback((updatedNodes: WorkspaceNode[], updatedConnections?: Connection[]) => {
     if (!isLoadedRef.current) return
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
     }
-    saveTimeoutRef.current = setTimeout(() => {
-      saveWorkspace(storage, {
-        nodes: updatedNodes,
-        connections: updatedConnections ?? connectionsRef.current,
-        viewport: getViewportRef.current(),
-      }).catch(console.error)
+    saveTimeoutRef.current = setTimeout(async () => {
+      const ids = [...deletedIdsRef.current] // snapshot to avoid lost-update
+      saveInFlightRef.current = true
+      try {
+        await saveWorkspace(storage, {
+          nodes: updatedNodes,
+          connections: updatedConnections ?? connectionsRef.current,
+          viewport: getViewportRef.current(),
+        }, ids)
+        // Remove only the delivered IDs — preserve any added during the save
+        const deliveredSet = new Set(ids)
+        deletedIdsRef.current = deletedIdsRef.current.filter((id) => !deliveredSet.has(id))
+        deletionManifest.save(deletedIdsRef.current)
+      } catch (e) {
+        console.error(e)
+      } finally {
+        saveInFlightRef.current = false
+      }
     }, 300)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Beforeunload flush (fire-and-forget — write-through cache in adapter provides safety)
+  // Poll for externally-added nodes
+  useEffect(() => {
+    if (!isLoadedRef.current) return
+    const interval = setInterval(() => {
+      if (saveInFlightRef.current) return // skip while save is in-flight
+      loadWorkspace(storage).then((serverState) => {
+        const clientNodeIds = new Set(nodesRef.current.map((n) => n.id))
+        const deletedSet = new Set(deletedIdsRef.current)
+        const newNodes = serverState.nodes.filter((n) => !clientNodeIds.has(n.id) && !deletedSet.has(n.id))
+        const clientConnIds = new Set(connectionsRef.current.map((c) => c.id))
+        const newConns = serverState.connections.filter((c) => !clientConnIds.has(c.id) && !deletedSet.has(c.id))
+        if (newNodes.length === 0 && newConns.length === 0) return
+        setNodes((prev) => [...prev, ...newNodes])
+        if (newConns.length > 0) {
+          setConnections((prev) => [...prev, ...newConns])
+        }
+      }).catch(console.error)
+    }, 2000)
+    return () => clearInterval(interval)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded])
+
+  // Beforeunload flush — includes deletion manifest
   useEffect(() => {
     const handleBeforeUnload = () => {
       if (saveTimeoutRef.current) {
@@ -66,7 +114,7 @@ export function useWorkspacePersistence({ storage, getViewport }: UseWorkspacePe
         nodes: nodesRef.current,
         connections: connectionsRef.current,
         viewport: getViewportRef.current(),
-      })
+      }, deletedIdsRef.current)
     }
 
     window.addEventListener("beforeunload", handleBeforeUnload)
@@ -84,5 +132,6 @@ export function useWorkspacePersistence({ storage, getViewport }: UseWorkspacePe
     initialViewport,
     isLoaded,
     scheduleSave,
+    trackDeletion,
   }
 }

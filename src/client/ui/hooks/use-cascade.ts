@@ -36,6 +36,10 @@ export function useCascade({
         connections,
         nodesRef.current,
         { aiExecutor, transformExecutor, blobStorage, pdfRenderer },
+        // Stream cell outputs as each schedule step completes — a fast Code
+        // cell's result appears immediately rather than waiting for a slow
+        // downstream AI cell.
+        (partialCells) => setCells(partialCells),
       )
       setCells(updatedCells)
       // CRITICAL: always pass nodesRef.current — never an empty array

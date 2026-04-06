@@ -27,6 +27,10 @@ export async function executeCascade(
     blobStorage: BlobStoragePort
     pdfRenderer: PdfRendererPort
   },
+  // Optional progress callback fired after each cell in the schedule completes.
+  // Lets the UI render incremental cell outputs (a fast Code cell's result
+  // appears immediately rather than waiting for a slow downstream AI cell).
+  onProgress?: (cells: Cell[]) => void,
 ): Promise<ExecuteCascadeResult> {
   const schedule = buildExecutionSchedule(triggeredCellId, cells, connections)
 
@@ -154,6 +158,12 @@ export async function executeCascade(
 
     outputs.set(step.cellId, output)
     cellMap.set(step.cellId, { ...cell, output, lastInputHash: inputHash })
+
+    // Stream incremental progress so the UI can render this cell's output
+    // before downstream cells (which may be slow AI calls) complete.
+    if (onProgress) {
+      onProgress(cells.map((c) => cellMap.get(c.id) ?? c))
+    }
   }
 
   const updatedCells = cells.map((c) => cellMap.get(c.id) ?? c)

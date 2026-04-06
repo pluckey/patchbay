@@ -52,24 +52,30 @@ export const cellEvaluator: CellExecutorPort = {
 
     try {
       // Build the bindings: for each input, look up its contribution, load
-      // its library (memoized), parse the raw artifact, and bind the result
-      // under the connection label. The label key (e.g., "paper", "notes")
-      // becomes the variable name the cell author uses in code.
-      const bindingNames: string[] = []
-      const bindingValues: unknown[] = []
-
+      // its library (memoized), parse the raw artifact, and put the result
+      // under its connection label inside a single `input` object. Cell
+      // authors then write `input.paper.getPage(1)` rather than `paper.getPage(1)`.
+      //
+      // The wrapper convention exists for three reasons:
+      //   1. Labels can be any string — `"my pdf"`, `"page-1"`, etc. — which
+      //      would crash `new AsyncFunction("my pdf", code)` with SyntaxError.
+      //      Object keys accept any string.
+      //   2. Top-level binds would shadow JS globals (Math, JSON, console, ...)
+      //      whenever a label collides. The wrapper namespaces inputs.
+      //   3. Matches the Monaco type-def shape (`declare const input: { ... }`)
+      //      and the legacy worker convention (`new AsyncFunction("input", ...)`).
+      const inputObj: Record<string, unknown> = {}
       for (const [label, entry] of Object.entries(inputs)) {
         const contribution = sourceKindRegistry.get(entry.kind)
         const libraryHandle = await getLibraryHandle(entry.kind)
         const parsed = await contribution.parse(entry.rawArtifact, libraryHandle)
-        bindingNames.push(label)
-        bindingValues.push(parsed)
+        inputObj[label] = parsed
       }
 
       // Compile and execute the user code.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor as any
-      const fn = new AsyncFunction(...bindingNames, code)
+      const fn = new AsyncFunction("input", code)
 
       // Soft timeout warning: if the cell takes longer than the timeout,
       // log a warning but don't kill execution (we can't — main thread).
@@ -79,7 +85,7 @@ export const cellEvaluator: CellExecutorPort = {
       }, timeout)
 
       try {
-        const result = await fn(...bindingValues)
+        const result = await fn(inputObj)
         clearTimeout(timeoutWarning)
         return {
           status: "success",

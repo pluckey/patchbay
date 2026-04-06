@@ -116,6 +116,11 @@ export function TransformCodeEditor({ value, inputLegend, onChange, onClose }: T
           padding: { top: 8, bottom: 8 },
           renderLineHighlight: "none",
           contextmenu: false,
+          // Render hover tooltips, autocomplete dropdowns, and signature help
+          // with position:fixed so they escape ancestor overflow:hidden /
+          // overflow-y-auto. Required for use inside the Scope panel which has
+          // three layers of overflow clipping above this editor.
+          fixedOverflowWidgets: true,
         }}
       />
     </div>

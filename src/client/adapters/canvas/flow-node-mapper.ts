@@ -339,6 +339,10 @@ export type CellFlowNodeData = {
   output?: CellOutput
   health?: StalenessStatus
   hasInput: boolean
+  /** Source code for code cells — surfaced so the canvas card shows what the cell does. */
+  code?: string
+  /** Instruction prompt for ai cells — surfaced so the canvas card shows what the cell asks. */
+  instruction?: string
   callbacks: CellCardCallbacks
 }
 
@@ -356,6 +360,8 @@ export function cellsToFlowNodes(
       output: cell.output,
       health: healthMap?.get(cell.id),
       hasInput: cell.type !== 'source',
+      code: cell.type === 'code' ? cell.code : undefined,
+      instruction: cell.type === 'ai' ? cell.instruction : undefined,
       callbacks,
     }
 

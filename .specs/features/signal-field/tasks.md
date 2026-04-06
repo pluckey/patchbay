@@ -39,7 +39,7 @@ verification_protocol: |
 > **Depends:** (none)
 > **Files:** `src/kernel/entities/cell.ts` (create), `src/kernel/entities/index.ts` (modify)
 > **Wave:** 1
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: da-cell-entity
 - **Done when**: `cell.ts` exports `CellOutput` (status union: success/error/running with text/error/durationMs), `BaseCell` (id, title, position, dimensions?, createdAt, updatedAt, output?, lastInputHash?: string), `SourceCellData` (type: 'source', content: string), `AiCellData` (type: 'ai', instruction: string, provider: string, model: string, outputMode: 'text' | 'structured', schemaMode: 'single' | 'collection', schema: SchemaField[]), `CodeCellData` (type: 'code', code: string, timeoutMs: number), and `Cell` (SourceCellData | AiCellData | CodeCellData). All types re-exported from `kernel/entities/index.ts`. File imports only from `workspace-node.ts` (Position, Dimensions) and `schema-field.ts` (SchemaField). Zero framework imports.
@@ -52,7 +52,7 @@ verification_protocol: |
 > **Depends:** (none)
 > **Files:** `src/kernel/entities/connection.ts` (modify)
 > **Wave:** 1
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: da-connection-gate
 - **Done when**: `Connection` type includes `gate: 'open' | 'latched'` field. Default value semantics documented in comment. All downstream compile errors fixed (create-connection.ts, storage-envelope.ts).
@@ -65,7 +65,7 @@ verification_protocol: |
 > **Depends:** t-cell-entity
 > **Files:** `src/kernel/entities/workspace.ts` (modify)
 > **Wave:** 2
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: da-execution-mode
 - **Done when**: `Workspace` type includes `cells?: Cell[]` (optional — strangler fig) and `executionMode?: 'manual' | 'automatic'` (optional). Import of `Cell` from `./cell`. Both fields optional to avoid compile-time cascade. Existing code compiles unchanged.
@@ -80,7 +80,7 @@ verification_protocol: |
 > **Depends:** t-cell-entity
 > **Files:** `src/kernel/transforms/create-source-cell.ts` (create)
 > **Wave:** 2
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: da-create-source-cell
 - **Done when**: Pure function `createSourceCell(position: Position, content?: string, title?: string) -> SourceCellData`. Generates id via nanoid. Sets type='source', createdAt/updatedAt to Date.now(), output to `{ status: 'success', text: content ?? '', durationMs: 0 }`. Default title 'Source'.
@@ -93,7 +93,7 @@ verification_protocol: |
 > **Depends:** t-cell-entity
 > **Files:** `src/kernel/transforms/create-ai-cell.ts` (create)
 > **Wave:** 2
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: da-create-ai-cell
 - **Done when**: Pure function `createAiCell(position: Position, instruction?: string, title?: string) -> AiCellData`. Generates id via nanoid. Sets type='ai', createdAt/updatedAt to Date.now(), output undefined. Default provider/model 'anthropic'/'claude-sonnet-4-20250514'. Default outputMode='text', schemaMode='single', schema=[]. Default title 'AI'.
@@ -106,7 +106,7 @@ verification_protocol: |
 > **Depends:** t-cell-entity
 > **Files:** `src/kernel/transforms/create-code-cell.ts` (create)
 > **Wave:** 2
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: da-create-code-cell
 - **Done when**: Pure function `createCodeCell(position: Position, code?: string, title?: string) -> CodeCellData`. Generates id via nanoid. Sets type='code', createdAt/updatedAt to Date.now(), output undefined. Default timeoutMs=5000, code=''. Default title 'Code'.
@@ -119,7 +119,7 @@ verification_protocol: |
 > **Depends:** t-cell-entity, t-connection-gate
 > **Files:** `src/kernel/transforms/compute-terminal-cells.ts` (create)
 > **Wave:** 2
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: da-compute-terminal-cells
 - **Done when**: Pure function `computeTerminalCells(cells: Cell[], connections: Connection[]) -> Cell[]`. Returns cells with no outgoing connections where `gate === 'open'`. A cell with only latched outgoing connections IS terminal. Empty cells returns empty.
@@ -132,7 +132,7 @@ verification_protocol: |
 > **Depends:** t-cell-entity, t-connection-gate
 > **Files:** `src/kernel/transforms/compute-mix.ts` (create)
 > **Wave:** 2
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: da-compute-mix
 - **Done when**: Pure function `computeMix(cells: Cell[], connections: Connection[]) -> MixEntry[]`. `MixEntry` exported: `{ cellId: string, title: string, output: string, order: number }`. Orders terminal cells by topological depth. Cells without output produce empty string.
@@ -145,7 +145,7 @@ verification_protocol: |
 > **Depends:** t-cell-entity, t-connection-gate
 > **Files:** `src/kernel/transforms/build-execution-schedule.ts` (create)
 > **Wave:** 2
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: da-build-execution-schedule
 - **Done when**: Pure function `buildExecutionSchedule(triggeredCellId: string, cells: Cell[], connections: Connection[]) -> ExecutionStep[]`. `ExecutionStep` exported: `{ cellId: string }`. BFS downstream from triggered cell, following outgoing open connections (skips latched). Source cells excluded from schedule. Uses BFS traversal (not hard-coded topological sort) to accommodate future cycle support.
@@ -158,7 +158,7 @@ verification_protocol: |
 > **Depends:** t-cell-entity
 > **Files:** `src/kernel/transforms/resolve-cell-inputs.ts` (create)
 > **Wave:** 2
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: da-resolve-cell-inputs
 - **Done when**: Pure function `resolveCellInputs(cellId: string, cells: Cell[], connections: Connection[], outputs?: Map<string, CellOutput>) -> Record<string, string>`. Keys are source cell titles, values are output text. Checks outputs map first (cascade accumulator), falls back to cell.output. Only includes 'success' outputs. Returns empty object if no inputs.
@@ -171,7 +171,7 @@ verification_protocol: |
 > **Depends:** t-cell-entity
 > **Files:** `src/kernel/transforms/validate-connection.ts` (modify)
 > **Wave:** 2
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: da-validate-connection-signal-field
 - **Done when**: Function gains optional `cells?: Cell[]` parameter. When cells provided: rejects connections targeting Source cells, permits multiple inputs to AI/Code cells, rejects self-connections, rejects Cell↔WorkspaceNode cross-type connections. Existing legacy logic unchanged. Cycle detection operates across both.
@@ -184,7 +184,7 @@ verification_protocol: |
 > **Depends:** t-cell-entity
 > **Files:** `src/kernel/transforms/create-connection.ts` (modify)
 > **Wave:** 2
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: (gap — cell label generation)
 - **Done when**: Function gains optional `cells?: Cell[]` parameter. When sourceId matches a cell, label generated from cell type: 'source', 'ai', 'code'. Collision avoidance works across both node and cell labels. Existing legacy logic unchanged.
@@ -197,7 +197,7 @@ verification_protocol: |
 > **Depends:** t-cell-entity
 > **Files:** `src/kernel/transforms/compute-staleness.ts` (create)
 > **Wave:** 2
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: da-compute-staleness
 - **Done when**: Pure function `computeStaleness(cells: Cell[], connections: Connection[]) -> Map<string, 'current' | 'stale' | 'error'>`. Cells with output.status === 'error' are 'error'. For each cell with upstream connections: compute deterministic hash of resolveCellInputs result; if hash differs from cell.lastInputHash (or lastInputHash is absent), cell is 'stale'. Propagates transitively downstream. Cells with matching lastInputHash are 'current'. Cells with no output are 'stale'. Cells with no upstream connections and output present are 'current'.
@@ -210,7 +210,7 @@ verification_protocol: |
 > **Depends:** t-cell-entity
 > **Files:** `src/kernel/transforms/update-cell-title.ts` (create)
 > **Wave:** 2
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: da-update-cell-title
 - **Done when**: Pure function `updateCellTitle(cells: Cell[], cellId: string, title: string) -> Cell[]`. Immutable update. Returns new array with updated cell.
@@ -225,7 +225,7 @@ verification_protocol: |
 > **Depends:** t-build-execution-schedule, t-resolve-cell-inputs
 > **Files:** `src/client/domain/use-cases/execute-cascade.ts` (create)
 > **Wave:** 3
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: da-execute-cascade
 - **Done when**: Async function `executeCascade(triggeredCellId, cells, connections, ports: { aiExecutor: AiExecutorPort, transformExecutor: TransformExecutorPort }) -> { outputs: Map<string, CellOutput>, updatedCells: Cell[] }`. Orchestrates: build schedule → iterate → resolve inputs → execute cell → set lastInputHash. Source cells produce output from content (no port). AI cells use AiExecutorPort (instruction + concatenated inputs as userMessage + provider/model + optional schema). Code cells use TransformExecutorPort (code + resolved inputs as input object + timeoutMs). After executing each cell, sets lastInputHash on the cell to a deterministic hash of the resolved inputs used for that execution. Captures durationMs. Error handling per-step (one failure doesn't abort cascade).
@@ -238,7 +238,7 @@ verification_protocol: |
 > **Depends:** t-cell-entity, t-workspace-cells, t-connection-gate
 > **Files:** `src/client/adapters/storage/storage-envelope.ts` (modify)
 > **Wave:** 3
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: da-workspace-migration (client-side)
 - **Done when**: CURRENT_VERSION bumped to 11. StorageEnvelope includes `cells?: Cell[]`, `executionMode?: 'manual' | 'automatic'`. migrate() has v10→v11 step: adds `cells: []` if absent, `executionMode: 'manual'` if absent, `gate: 'open'` to connections missing gate. toWorkspace() populates cells and executionMode with defaults. toEnvelope() serializes them.
@@ -251,7 +251,7 @@ verification_protocol: |
 > **Depends:** t-cell-entity, t-connection-gate
 > **Files:** `src/server/storage/migrate-to-signal-field.ts` (create)
 > **Wave:** 3
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: da-workspace-migration (server-side)
 - **Done when**: Idempotent function `migrateToSignalField(workspaceJson: string) -> string`. If version < 11: adds cells, executionMode, gate. Bumps to 11. Returns JSON string. Wire into GET `/api/workspaces/[id]` route.
@@ -264,10 +264,10 @@ verification_protocol: |
 > **Depends:** t-workspace-cells
 > **Files:** `src/server/storage/merge-workspace.ts` (modify)
 > **Wave:** 3
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: (Jacobi inversion #5 — merge data loss)
-- **Done when**: mergeWorkspace() merges `cells` array with same preserve-absent-unless-deleted logic as nodes/connections. When incoming has no cells (legacy client), disk cells fully preserved.
+- **Done when**: mergeWorkspace() merges `cells` array with the same preserve-absent-unless-tombstoned logic as nodes/connections (i.e. cells absent from the incoming payload are kept unless their id appears in the deletion manifest). When incoming has no cells (legacy client), disk cells fully preserved.
 
 ---
 
@@ -277,7 +277,7 @@ verification_protocol: |
 > **Depends:** t-create-source-cell, t-create-ai-cell, t-create-code-cell, t-compute-terminal-cells, t-compute-mix, t-build-execution-schedule, t-resolve-cell-inputs, t-compute-staleness, t-update-cell-title
 > **Files:** `src/kernel/transforms/index.ts` (modify)
 > **Wave:** 3
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: (infrastructure — SINGLE BARREL OWNER per G4)
 - **Done when**: All nine new transforms plus their exported types (MixEntry, ExecutionStep) are exported. Existing exports unchanged. This is the ONLY task that modifies the transforms barrel.
@@ -292,7 +292,7 @@ verification_protocol: |
 > **Depends:** t-workspace-cells, t-storage-envelope-v11
 > **Files:** `src/client/ui/hooks/use-workspace-persistence.ts` (modify)
 > **Wave:** 4
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: (persistence infrastructure for cells)
 - **Done when**: Hook manages `cells` state (useState<Cell[]>) with cellsRef. Load populates from `workspace.cells ?? []`. scheduleSave signature: `(updatedNodes: WorkspaceNode[], updatedConnections?: Connection[], updatedCells?: Cell[])`. Save payload includes `cells: updatedCells ?? cellsRef.current` — NEVER empty array for nodes or cells. Polling absorbs externally-added cells. beforeunload flush includes cells. Returns cells, setCells, cellsRef.
@@ -305,7 +305,7 @@ verification_protocol: |
 > **Depends:** t-cell-entity
 > **Files:** `src/client/adapters/canvas/flow-node-mapper.ts` (modify)
 > **Wave:** 4
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: da-cell-flow-mapper
 - **Done when**: New `CellCardCallbacks` type: onOpenScope, onTrigger, onDelete, onDuplicate, onResizeEnd. New `CellFlowNodeData` type: cellId, cellType, title, output?, health?, hasInput, callbacks. New function `cellsToFlowNodes(cells, connections, callbacks, healthMap?) -> Node[]` maps all cell types to xyflow nodes with type 'cellNode'. Existing toFlowNodes unchanged.
@@ -318,7 +318,7 @@ verification_protocol: |
 > **Depends:** t-cell-flow-mapper
 > **Files:** `src/client/adapters/canvas/use-canvas-binding.ts` (modify)
 > **Wave:** 5
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: da-cell-flow-mapper (binding portion)
 - **Done when**: UseCanvasBindingArgs gains: cells?, cellCardCallbacks?, onCellMove?, onNodeDoubleClick?. Flow nodes sync combines legacy + cell nodes. onNodeDragStop routes to onCellMove for cellNode type. onNodeDoubleClick callback fires for all node types (WorkspaceView uses it for Scope).
@@ -331,7 +331,7 @@ verification_protocol: |
 > **Depends:** (none)
 > **Files:** `src/client/ui/components/CellShell.tsx` (create)
 > **Wave:** 4
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: da-cell-shell
 - **Done when**: Props: cellId, title, hasInput, health?, onDelete, onDuplicate, onResizeEnd, children. Uses bg-background text-foreground border-border rounded-lg. NodeResizer visible on hover. Source Handle on right always. Target Handle on left only when hasInput. Health dot in header: green (current), amber (stale), red (error), gray (no output). Delete/duplicate buttons on hover.
@@ -344,7 +344,7 @@ verification_protocol: |
 > **Depends:** (none)
 > **Files:** `src/client/ui/components/MixPanel.tsx` (create)
 > **Wave:** 4
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: da-mix-panel
 - **Done when**: Props: entries: MixEntry[], collapsible?: boolean. Right-side panel, w-[300px], h-full, border-l. bg-muted, text-muted-foreground headers. Each entry: cell title as header, output text as body. Empty state: "No terminal cells." Scrollable.
@@ -357,7 +357,7 @@ verification_protocol: |
 > **Depends:** (none)
 > **Files:** `src/client/ui/components/Toolbar.tsx` (modify)
 > **Wave:** 4
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: da-cell-toolbar
 - **Done when**: Props gain: onAddSource?, onAddAi?, onAddCode?, showLegacy?. Three primary buttons: "+ Source", "+ AI", "+ Code". Legacy buttons (Markdown, Transform, Chat, AI Transform, PDF) in a collapsible "Legacy" section, collapsed by default. Primary buttons use default Button variant. Legacy buttons use outline variant.
@@ -370,7 +370,7 @@ verification_protocol: |
 > **Depends:** (none)
 > **Files:** `src/client/ui/components/ScopeSourceEditor.tsx` (create)
 > **Wave:** 4
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: da-scope-source-editor
 - **Done when**: Props: content, onContentChange. Renders markdown editor with edit/preview toggle (adapts MarkdownContent pattern: ReactMarkdown rendering, draft state, Switch toggle). Full-width. No xyflow constraints needed (outside ReactFlow tree). 'use client' directive.
@@ -383,7 +383,7 @@ verification_protocol: |
 > **Depends:** (none)
 > **Files:** `src/client/ui/components/ScopeCodeEditor.tsx` (create)
 > **Wave:** 4
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: da-scope-code-editor
 - **Done when**: Props: code, timeoutMs, inputLegend: InputLegendEntry[], onCodeChange, onTimeoutChange. Renders lazy-loaded CodeMirror editor (adapts TransformCodeEditor pattern). Input legend section showing label → sourceName. Timeout dropdown with presets (1s/5s/10s/30s/60s). Full-width. 'use client' directive.
@@ -396,7 +396,7 @@ verification_protocol: |
 > **Depends:** (none)
 > **Files:** `src/client/ui/components/ScopeAiEditor.tsx` (create)
 > **Wave:** 4
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: da-scope-ai-editor
 - **Done when**: Props: instruction, provider, model, outputMode, schemaMode, schema, roster: ModelRosterEntry[], onInstructionChange, onModelChange, onOutputModeChange, onSchemaChange, onSchemaModeChange. Renders: instruction textarea with placeholder, model selector Popover (adapts AiTransformNode pattern: grouped by provider, checkmark on current), output mode toggle (text/structured), SchemaBuilder when structured, schema mode toggle (single/collection). 'use client' directive.
@@ -409,7 +409,7 @@ verification_protocol: |
 > **Depends:** (none)
 > **Files:** `src/client/ui/components/ScopeOutputColumn.tsx` (create)
 > **Wave:** 4
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: da-scope-view (output portion)
 - **Done when**: Props: output?: CellOutput, health?: 'current' | 'stale' | 'error', cellType, onTrigger?, structuredData?. Renders: trigger/run button at top (AI and Code cells only, disabled when running), full output text (scrollable, not truncated), health dot with label, duration display, error message display. StructuredOutputDisplay for structured AI output. Running state shows loading indicator. 'use client' directive.
@@ -422,7 +422,7 @@ verification_protocol: |
 > **Depends:** (none)
 > **Files:** `src/client/ui/components/ScopeInputsColumn.tsx` (create)
 > **Wave:** 4
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: da-scope-view (inputs portion)
 - **Done when**: Props: inputs: Array<{ cellId: string, title: string, text: string }>, onNavigateToCell: (cellId: string) => void. Renders each input: source cell title as header, output text as body (truncated with expand), click handler calls onNavigateToCell. Empty state for Source cells: "Source cells have no inputs." 'use client' directive.
@@ -437,7 +437,7 @@ verification_protocol: |
 > **Depends:** (none)
 > **Files:** `src/client/ui/hooks/use-scope-state.ts` (create)
 > **Wave:** 5
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: da-use-scope-state
 - **Done when**: Hook returns `{ scopeCellId: string | null, openScope: (cellId: string) => void, closeScope: () => void }`. One Scope at a time. openScope sets the focused cell ID. closeScope clears it. ESC key listener closes Scope when open. 'use client' directive.
@@ -450,7 +450,7 @@ verification_protocol: |
 > **Depends:** t-resolve-cell-inputs
 > **Files:** `src/client/ui/hooks/use-scope-data.ts` (create)
 > **Wave:** 5
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: da-use-scope-data
 - **Done when**: Hook `useScopeData(cellId: string | null, cells: Cell[], connections: Connection[]) -> { inputs: Array<{ cellId: string, title: string, text: string }>, inputLegend: InputLegendEntry[] }`. Calls resolveCellInputs for the focused cell. Builds inputs array with cell metadata for ScopeInputsColumn. Builds inputLegend for ScopeCodeEditor. Memoized — recomputes on cellId, cells, or connections change. Returns empty arrays when cellId is null.
@@ -463,7 +463,7 @@ verification_protocol: |
 > **Depends:** t-execute-cascade, t-persistence-cells
 > **Files:** `src/client/ui/hooks/use-cascade.ts` (create)
 > **Wave:** 5
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: da-use-cascade
 - **Done when**: Hook `useCascade({ cells, connections, setCells, cellsRef, nodesRef, scheduleSave })` returns `{ triggerCell: (cellId: string) -> Promise<void> }`. Gets aiExecutor and transformExecutor from useAdapters(). On trigger: calls executeCascade, updates each cell's output in state via setCells (immutable), calls scheduleSave with nodesRef.current (NEVER empty array).
@@ -476,7 +476,7 @@ verification_protocol: |
 > **Depends:** t-compute-mix
 > **Files:** `src/client/ui/hooks/use-mix.ts` (create)
 > **Wave:** 5
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: da-use-mix
 - **Done when**: Hook `useMix(cells: Cell[], connections: Connection[]) -> MixEntry[]`. Memoized via useMemo on cells/connections.
@@ -489,7 +489,7 @@ verification_protocol: |
 > **Depends:** t-compute-staleness
 > **Files:** `src/client/ui/hooks/use-health.ts` (create)
 > **Wave:** 5
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: da-compute-staleness (hook wrapper)
 - **Done when**: Hook `useHealth(cells: Cell[], connections: Connection[]) -> Map<string, 'current' | 'stale' | 'error'>`. Memoized via useMemo on cells/connections. Calls computeStaleness.
@@ -502,7 +502,7 @@ verification_protocol: |
 > **Depends:** t-persistence-cells
 > **Files:** `src/client/ui/hooks/use-cell-operations.ts` (create)
 > **Wave:** 5
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: (architectural extraction)
 - **Done when**: Hook takes `{ cells, setCells, cellsRef, nodesRef, connections, connectionsRef, setConnections, scheduleSave, trackDeletion, roster }`. Returns handlers: handleAddSourceCell, handleAddAiCell, handleAddCodeCell, handleCellContentChange, handleCellInstructionChange, handleCellCodeChange, handleCellTitleChange, handleCellModelChange, handleCellTimeoutChange, handleCellOutputModeChange, handleCellSchemaChange, handleCellSchemaModeChange, handleCellDelete (with orphaned connection cleanup), handleCellDuplicate, handleCellMove, handleCellResize. Source cell content changes auto-update output (identity). All handlers call scheduleSave with nodesRef.current (NEVER empty array).
@@ -515,7 +515,7 @@ verification_protocol: |
 > **Depends:** t-cell-shell, t-cell-flow-mapper
 > **Files:** `src/client/ui/components/CellNode.tsx` (create)
 > **Wave:** 5
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: da-cell-node-component
 - **Done when**: Single xyflow node component registered as 'cellNode'. Receives CellFlowNodeData via data prop. Renders inside CellShell. **Creation state machine**: empty cells (no content/code/instruction) show inline textarea with nodrag/nowheel classes; transition to preview mode on BLUR (not on content change). **Preview mode**: truncated output preview (~3 lines, line-clamp-3). Source: shows content. Code/AI: shows last output text or "No output yet." Running state shows loading indicator. Error shows error message. Trigger button on hover for AI/Code cells (nodrag class). No inline editing once cell has content — double-click opens Scope.
@@ -528,7 +528,7 @@ verification_protocol: |
 > **Depends:** t-scope-source-editor, t-scope-code-editor, t-scope-ai-editor, t-scope-output-column, t-scope-inputs-column
 > **Files:** `src/client/ui/components/ScopeView.tsx` (create)
 > **Wave:** 5
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: da-scope-view
 - **Done when**: Bottom panel component. Props: cell (focused Cell), inputs (from useScopeData), inputLegend, health, onNavigateToCell, onTrigger, plus all editing callbacks (onContentChange, onInstructionChange, onCodeChange, onModelChange, onTimeoutChange, onOutputModeChange, onSchemaChange, onSchemaModeChange), roster, onClose. Three-column CSS Grid layout: inputs (20%) | editor (50%) | output (30%). Resizable height via drag handle (~40% default). Close button in header. Delegates to ScopeSourceEditor/ScopeCodeEditor/ScopeAiEditor based on cell.type. Renders ScopeInputsColumn on left, ScopeOutputColumn on right. 'use client' directive.
@@ -543,7 +543,7 @@ verification_protocol: |
 > **Depends:** t-cell-node
 > **Files:** `src/client/ui/components/Canvas.tsx` (modify)
 > **Wave:** 6
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: (integration wiring)
 - **Done when**: Canvas nodeTypes includes `cellNode: CellNode`. Import added. All existing node types preserved.
@@ -556,7 +556,7 @@ verification_protocol: |
 > **Depends:** t-persistence-cells
 > **Files:** `src/client/ui/hooks/use-workspace.ts` (modify)
 > **Wave:** 7
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: (integration wiring — state exposure)
 - **Done when**: (1) useWorkspace extended to expose cells, setCells, cellsRef from persistence. (2) handleCreateConnection passes cellsRef.current to validateConnection.
@@ -569,7 +569,7 @@ verification_protocol: |
 > **Depends:** t-use-workspace-cells, t-use-cascade, t-use-mix, t-use-health, t-use-scope-state, t-use-scope-data, t-use-cell-operations, t-cell-flow-mapper, t-canvas-binding-cells, t-canvas-cell-registration
 > **Files:** `src/client/ui/components/WorkspaceView.tsx` (modify)
 > **Wave:** 8
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: (integration wiring — hook composition)
 - **Done when**: (1) useCellOperations called with cell state + deps, returns all cell handlers. (2) useCascade called, returns triggerCell. (3) useMix called, returns mixEntries. (4) useHealth called, returns healthMap. (5) useScopeState called, returns scopeCellId/openScope/closeScope. (6) useScopeData called with scopeCellId, returns inputs/inputLegend. (7) CellCardCallbacks created: onOpenScope→openScope, onTrigger→triggerCell, onDelete/onDuplicate/onResizeEnd from cell operations. (8) useCanvasBinding receives cells + cardCallbacks + onCellMove + onNodeDoubleClick→openScope.
@@ -582,7 +582,7 @@ verification_protocol: |
 > **Depends:** t-workspace-view-hooks, t-cell-toolbar, t-mix-panel, t-scope-view
 > **Files:** `src/client/ui/components/WorkspaceView.tsx` (modify)
 > **Wave:** 9
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: (integration wiring — layout and rendering)
 - **Done when**: (1) Layout: flex column with canvas area (flex-1) + ScopeView (conditional, resizable bottom panel). MixPanel on right spanning full height. (2) ScopeView rendered when scopeCellId is set, receives focused cell + all editing callbacks + inputs + inputLegend + health + roster + triggerCell + onNavigateToCell + onClose. (3) Toolbar renders with Source/AI/Code creation + Legacy collapsible.
@@ -597,7 +597,7 @@ verification_protocol: |
 > **Depends:** t-transforms-barrel, t-execute-cascade
 > **Files:** `src/kernel/transforms/__tests__/signal-field.test.ts` (create)
 > **Wave:** 10
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: (verification — G1 guardrail)
 - **Done when**: Tests cover: (1) createSourceCell/createAiCell/createCodeCell produce correct types. (2) computeTerminalCells returns cells with no outgoing open connections. (3) computeMix orders by topological depth. (4) buildExecutionSchedule follows BFS, skips latched, excludes Source. (5) resolveCellInputs returns keyed inputs from connected cells. (6) computeStaleness propagates downstream. (7) executeCascade with mock ports executes Source→Code→AI chain correctly. All tests pass.
@@ -610,7 +610,7 @@ verification_protocol: |
 > **Depends:** t-workspace-view-layout
 > **Files:** (none — manual verification)
 > **Wave:** 10
-> **Status:** pending
+> **Status:** complete
 
 - **Implements**: (verification — G3 guardrail)
 - **Done when**: Manual test executed and passing: (1) Create Source cell — verify inline editor appears (creation state machine). Type content, click away — verify transition to output preview. (2) Double-click Source — verify Scope opens with markdown editor. (3) Create Code cell — write extraction logic in Scope. (4) Create AI cell — select model in Scope, write instruction, enable structured output with schema. (5) Wire Source→Code→AI. (6) Trigger from Code cell's Scope — verify cascade runs all three. (7) Verify health dots update (stale→running→current). (8) Verify Mix shows terminal output. (9) Verify Scope input navigation: click input in AI Scope → navigates to Code cell on canvas. (10) Reload page — verify cells persist. (11) Legacy nodes still render and function.

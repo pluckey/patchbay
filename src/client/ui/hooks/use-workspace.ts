@@ -40,7 +40,8 @@ export function useWorkspace({ getViewport }: UseWorkspaceArgs) {
   const {
     nodes, setNodes,
     connections, setConnections,
-    nodesRef, connectionsRef,
+    cells, setCells,
+    nodesRef, connectionsRef, cellsRef,
     initialViewport, isLoaded,
     scheduleSave, trackDeletion,
   } = useWorkspacePersistence({ storage, deletionManifest, getViewport })
@@ -165,10 +166,10 @@ export function useWorkspace({ getViewport }: UseWorkspaceArgs) {
   // --- Connection CRUD ---
   const handleCreateConnection = useCallback(
     (sourceId: string, targetId: string): boolean => {
-      const validation = validateConnection(connectionsRef.current, nodesRef.current, sourceId, targetId)
+      const validation = validateConnection(connectionsRef.current, nodesRef.current, sourceId, targetId, cellsRef.current)
       if (!validation.valid) return false
 
-      const conn = createConnection(sourceId, targetId, nodesRef.current, connectionsRef.current)
+      const conn = createConnection(sourceId, targetId, nodesRef.current, connectionsRef.current, cellsRef.current)
       setConnections((prev) => {
         const updated = [...prev, conn]
         scheduleSave(nodesRef.current, updated)
@@ -176,7 +177,7 @@ export function useWorkspace({ getViewport }: UseWorkspaceArgs) {
       })
       return true
     },
-    [setConnections, connectionsRef, nodesRef, scheduleSave]
+    [setConnections, connectionsRef, nodesRef, cellsRef, scheduleSave]
   )
 
   const handleRemoveConnection = useCallback(
@@ -378,10 +379,16 @@ export function useWorkspace({ getViewport }: UseWorkspaceArgs) {
     handleUpdateConnectionLabel,
     streamingNodeIds,
     roster,
+    // Cells (signal-field)
+    cells,
+    setCells,
+    cellsRef,
     // Expose internals for composed hooks
     setNodes,
+    setConnections,
     nodesRef,
     connectionsRef,
     scheduleSave,
+    trackDeletion,
   }
 }

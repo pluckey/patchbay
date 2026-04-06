@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useCallback, useEffect, useMemo } from "react"
+import React, { useState, useCallback, useEffect, useMemo } from "react"
 import type { Node, Edge, OnNodeDrag, OnNodesChange, OnEdgesChange, NodeChange, EdgeChange, Connection as FlowConnection } from "@xyflow/react"
 import { applyNodeChanges, applyEdgeChanges, useReactFlow } from "@xyflow/react"
-import type { WorkspaceNode, Connection, TransformResult, ModelRosterEntry, SchemaField, PdfRegion } from "@/kernel/entities"
-import { toFlowNodes, toFlowEdges, fromNodeDragStop } from "@/client/adapters/canvas/flow-node-mapper"
+import type { WorkspaceNode, Connection, TransformResult, ModelRosterEntry, SchemaField, PdfRegion, Cell, Position } from "@/kernel/entities"
+import { toFlowNodes, toFlowEdges, fromNodeDragStop, cellsToFlowNodes } from "@/client/adapters/canvas/flow-node-mapper"
+import type { CellCardCallbacks } from "@/client/adapters/canvas/flow-node-mapper"
 import { resolveChatSystemPrompts } from "@/client/domain/use-cases/resolve-chat-prompts"
 
 function applyChanges(changes: NodeChange[], nodes: Node[]): Node[] {
@@ -46,6 +47,10 @@ type UseCanvasBindingArgs = {
   onRemoveConnection: (connectionId: string) => void
   onUpdateConnectionLabel: (connectionId: string, label: string) => void
   getViewport: () => { x: number; y: number; zoom: number }
+  cells?: Cell[]
+  cellCardCallbacks?: CellCardCallbacks
+  onCellMove?: (cellId: string, position: Position) => void
+  onNodeDoubleClick?: (nodeId: string) => void
 }
 
 export function useCanvasBinding({
@@ -82,6 +87,10 @@ export function useCanvasBinding({
   onCreateConnection,
   onRemoveConnection,
   onUpdateConnectionLabel,
+  cells,
+  cellCardCallbacks,
+  onCellMove,
+  onNodeDoubleClick,
 }: UseCanvasBindingArgs) {
   const [flowNodes, setFlowNodes] = useState<Node[]>([])
 
@@ -93,7 +102,7 @@ export function useCanvasBinding({
 
   // Sync domain state → flow nodes on CRUD changes
   useEffect(() => {
-    setFlowNodes(toFlowNodes(nodes, connections, {
+    const legacyNodes = toFlowNodes(nodes, connections, {
       onContentChange,
       onDelete,
       onDuplicate,
@@ -118,8 +127,12 @@ export function useCanvasBinding({
       onAiSchemaChange,
       onAiSchemaModeChange,
       onAiExecute,
-    }, pipelineResults, chatSystemPrompts, streamingNodeIds, roster))
-  }, [nodes, connections, pipelineResults, chatSystemPrompts, streamingNodeIds, onContentChange, onDelete, onDuplicate, onResize, onNavigatePage, onZoomChange, onDarkModeToggle, onTransformCodeChange, onTimeoutChange, onRerun, onSendMessage, onResetChat, onModelChange, onAnnotationCreate, onAnnotationDelete, onAnnotationEdit, onAiInstructionChange, onAiModelChange, onAiInputModeChange, onAiAutoExecuteToggle, onAiOutputModeChange, onAiSchemaChange, onAiSchemaModeChange, onAiExecute, roster])
+    }, pipelineResults, chatSystemPrompts, streamingNodeIds, roster)
+    const cellNodes = cells && cellCardCallbacks
+      ? cellsToFlowNodes(cells, connections, cellCardCallbacks)
+      : []
+    setFlowNodes([...legacyNodes, ...cellNodes])
+  }, [nodes, connections, pipelineResults, chatSystemPrompts, streamingNodeIds, onContentChange, onDelete, onDuplicate, onResize, onNavigatePage, onZoomChange, onDarkModeToggle, onTransformCodeChange, onTimeoutChange, onRerun, onSendMessage, onResetChat, onModelChange, onAnnotationCreate, onAnnotationDelete, onAnnotationEdit, onAiInstructionChange, onAiModelChange, onAiInputModeChange, onAiAutoExecuteToggle, onAiOutputModeChange, onAiSchemaChange, onAiSchemaModeChange, onAiExecute, roster, cells, cellCardCallbacks])
 
   // Sync domain connections → flow edges
   const [flowEdges, setFlowEdges] = useState<Edge[]>([])
@@ -152,9 +165,21 @@ export function useCanvasBinding({
   const onNodeDragStop: OnNodeDrag = useCallback(
     (_event, node) => {
       const { nodeId, position } = fromNodeDragStop(node)
-      onMove(nodeId, position)
+      if (node.type === 'cellNode' && onCellMove) {
+        onCellMove(nodeId, position)
+      } else {
+        onMove(nodeId, position)
+      }
     },
-    [onMove]
+    [onMove, onCellMove]
+  )
+
+  // Double-click on any node — notify caller (e.g. WorkspaceView uses this to enter a Scope)
+  const handleNodeDoubleClick = useCallback(
+    (_event: React.MouseEvent, node: Node) => {
+      onNodeDoubleClick?.(node.id)
+    },
+    [onNodeDoubleClick]
   )
 
   // Handle xyflow connection event — always create a plain edge
@@ -187,6 +212,7 @@ export function useCanvasBinding({
     onNodesChange,
     onEdgesChange,
     onNodeDragStop,
+    onNodeDoubleClick: handleNodeDoubleClick,
     onConnect,
     createAtCenter,
   }

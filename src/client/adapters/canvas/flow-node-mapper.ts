@@ -1,5 +1,6 @@
 import type { Node, Edge } from "@xyflow/react"
-import type { Position, WorkspaceNode, Connection, TransformResult, Message, InputLegendEntry, ModelRosterEntry, SchemaField, PdfAnnotation, PdfRegion } from "@/kernel/entities"
+import type { Position, WorkspaceNode, Connection, TransformResult, Message, InputLegendEntry, ModelRosterEntry, SchemaField, PdfAnnotation, PdfRegion, Cell, CellOutput } from "@/kernel/entities"
+import type { StalenessStatus } from "@/kernel/transforms"
 
 export type MarkdownFlowNodeData = {
   nodeId: string
@@ -321,4 +322,52 @@ function extractMarkdownName(content: string): string {
   if (headingMatch) return headingMatch[1].trim().substring(0, 30)
   const firstLine = content.trim().substring(0, 25)
   return firstLine || "Untitled"
+}
+
+export type CellCardCallbacks = {
+  onOpenScope: (cellId: string) => void
+  onTrigger: (cellId: string) => void
+  onDelete: (cellId: string) => void
+  onDuplicate: (cellId: string) => void
+  onResizeEnd: (cellId: string, dimensions: { width: number; height: number }) => void
+}
+
+export type CellFlowNodeData = {
+  cellId: string
+  cellType: Cell['type']
+  title: string
+  output?: CellOutput
+  health?: StalenessStatus
+  hasInput: boolean
+  callbacks: CellCardCallbacks
+}
+
+export function cellsToFlowNodes(
+  cells: Cell[],
+  connections: Connection[],
+  callbacks: CellCardCallbacks,
+  healthMap?: Map<string, StalenessStatus>
+): Node<CellFlowNodeData>[] {
+  return cells.map((cell) => {
+    const data: CellFlowNodeData = {
+      cellId: cell.id,
+      cellType: cell.type,
+      title: cell.title,
+      output: cell.output,
+      health: healthMap?.get(cell.id),
+      hasInput: cell.type !== 'source',
+      callbacks,
+    }
+
+    return {
+      id: cell.id,
+      type: 'cellNode',
+      position: cell.position,
+      ...(cell.dimensions && {
+        width: cell.dimensions.width,
+        height: cell.dimensions.height,
+      }),
+      data,
+    }
+  })
 }

@@ -2,6 +2,7 @@ import { readWorkspaceById, writeWorkspaceById, deleteWorkspaceFile, withWorkspa
 import { readManifest, writeManifest, withManifestLock } from "@/server/storage/fs-manifest-store"
 import { mergeWorkspace } from "@/server/storage/merge-workspace"
 import { migrateToMultiWorkspace } from "@/server/storage/migrate-to-multi-workspace"
+import { migrateToSignalField } from "@/server/storage/migrate-to-signal-field"
 
 export async function GET(
   _request: Request,
@@ -13,7 +14,8 @@ export async function GET(
     if (json === null) {
       return Response.json({ error: "Workspace not found" }, { status: 404 })
     }
-    return new Response(json, {
+    const migrated = migrateToSignalField(json)
+    return new Response(migrated, {
       headers: { "Content-Type": "application/json" },
     })
   } catch (e) {

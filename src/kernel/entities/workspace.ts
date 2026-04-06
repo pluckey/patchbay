@@ -1,5 +1,6 @@
 import type { WorkspaceNode } from "./workspace-node"
 import type { Connection } from "./connection"
+import type { Cell } from "./cell"
 
 export type Viewport = {
   x: number
@@ -13,4 +14,6 @@ export type Workspace = {
   nodes: WorkspaceNode[]
   connections: Connection[]
   viewport: Viewport
+  cells?: Cell[]
+  executionMode?: 'manual' | 'automatic'
 }

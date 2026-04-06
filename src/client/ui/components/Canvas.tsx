@@ -23,6 +23,7 @@ import { PdfNode } from "./PdfNode"
 import { TransformNode } from "./TransformNode"
 import { ChatNode } from "./ChatNode"
 import { AiTransformNode } from "./AiTransformNode"
+import { CellNode } from "./CellNode"
 import { LabeledEdge } from "./LabeledEdge"
 
 type CanvasProps = {
@@ -31,14 +32,15 @@ type CanvasProps = {
   onNodesChange: OnNodesChange
   onEdgesChange: OnEdgesChange
   onNodeDragStop: OnNodeDrag
+  onNodeDoubleClick?: (event: React.MouseEvent, node: Node) => void
   onConnect: OnConnect
   initialViewport: Viewport | null
   onDropPdf?: (file: File, position: { x: number; y: number }) => void
 }
 
-export function Canvas({ nodes, edges, onNodesChange, onEdgesChange, onNodeDragStop, onConnect, initialViewport, onDropPdf }: CanvasProps) {
+export function Canvas({ nodes, edges, onNodesChange, onEdgesChange, onNodeDragStop, onNodeDoubleClick, onConnect, initialViewport, onDropPdf }: CanvasProps) {
   const nodeTypes: NodeTypes = useMemo(
-    () => ({ markdownNode: MarkdownNode, pdfNode: PdfNode, transformNode: TransformNode, chatNode: ChatNode, aiTransformNode: AiTransformNode }),
+    () => ({ markdownNode: MarkdownNode, pdfNode: PdfNode, transformNode: TransformNode, chatNode: ChatNode, aiTransformNode: AiTransformNode, cellNode: CellNode }),
     []
   )
   const edgeTypes: EdgeTypes = useMemo(
@@ -85,6 +87,7 @@ export function Canvas({ nodes, edges, onNodesChange, onEdgesChange, onNodeDragS
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       onNodeDragStop={onNodeDragStop}
+      onNodeDoubleClick={onNodeDoubleClick}
       onConnect={onConnect}
       defaultViewport={initialViewport ?? undefined}
       fitView={!initialViewport}

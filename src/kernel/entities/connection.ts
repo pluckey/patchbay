@@ -4,6 +4,7 @@ export type Connection = {
   targetId: string
   label: string
   createdAt: number
+  gate: 'open' | 'latched' // default 'open' — latched connections block signal flow
 }
 
 export type TransformResult =

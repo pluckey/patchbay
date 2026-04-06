@@ -3,6 +3,7 @@ type Identifiable = { id: string }
 type WorkspaceData = {
   nodes: Identifiable[]
   connections: Identifiable[]
+  cells?: Identifiable[]
   [key: string]: unknown
 }
 
@@ -28,9 +29,29 @@ export function mergeWorkspace(
     (c) => !incomingConnIds.has(c.id) && !deletedSet.has(c.id)
   )
 
-  return {
+  // Merge cells: if incoming has no cells array (legacy client), preserve all
+  // disk cells unchanged. Otherwise apply the same preserve-absent logic.
+  let mergedCells: Identifiable[] | undefined
+  const diskCells = disk.cells ?? []
+  if (incoming.cells === undefined) {
+    mergedCells = diskCells.length > 0 ? diskCells : undefined
+  } else {
+    const incomingCellIds = new Set(incoming.cells.map((c) => c.id))
+    const preservedCells = diskCells.filter(
+      (c) => !incomingCellIds.has(c.id) && !deletedSet.has(c.id)
+    )
+    mergedCells = [...incoming.cells, ...preservedCells]
+  }
+
+  const result: WorkspaceData = {
     ...incoming,
     nodes: [...incoming.nodes, ...preservedNodes],
     connections: [...incoming.connections, ...preservedConns],
   }
+
+  if (mergedCells !== undefined) {
+    result.cells = mergedCells
+  }
+
+  return result
 }

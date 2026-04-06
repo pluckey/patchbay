@@ -1,15 +1,18 @@
 import { nanoid } from "nanoid"
 import type { Connection } from "../entities/connection"
 import type { WorkspaceNode } from "../entities/workspace-node"
+import type { Cell } from "../entities/cell"
 
 export function createConnection(
   sourceId: string,
   targetId: string,
   nodes: WorkspaceNode[],
-  existingConnections: Connection[]
+  existingConnections: Connection[],
+  cells?: Cell[]
 ): Connection {
   const sourceNode = nodes.find((n) => n.id === sourceId)
-  const label = generateLabel(sourceNode, existingConnections)
+  const sourceCell = cells?.find((c) => c.id === sourceId)
+  const label = generateLabel(sourceNode, existingConnections, sourceCell)
 
   return {
     id: nanoid(),
@@ -17,15 +20,19 @@ export function createConnection(
     targetId,
     label,
     createdAt: Date.now(),
+    gate: 'open' as const,
   }
 }
 
 function generateLabel(
   sourceNode: WorkspaceNode | undefined,
-  existingConnections: Connection[]
+  existingConnections: Connection[],
+  sourceCell?: Cell
 ): string {
   let base: string
-  if (!sourceNode) {
+  if (sourceCell) {
+    base = sourceCell.type
+  } else if (!sourceNode) {
     base = "input"
   } else {
     switch (sourceNode.type) {

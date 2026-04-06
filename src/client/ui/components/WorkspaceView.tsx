@@ -1,175 +1,64 @@
 "use client"
 
-import { useCallback, useMemo } from "react"
-import { useReactFlow } from "@xyflow/react"
-import { useWorkspace } from "@/client/ui/hooks/use-workspace"
-import { useCanvasBinding } from "@/client/adapters/canvas/use-canvas-binding"
-import { usePipelineExecution } from "@/client/ui/hooks/use-pipeline-execution"
-import { useAdapters } from "@/client/ui/app/adapters-context"
-import { useAiTransformHandlers } from "@/client/ui/hooks/use-ai-transform-handlers"
-import { useAiAutoExecute } from "@/client/ui/hooks/use-ai-auto-execute"
+import { useWorkspaceViewModel } from "@/client/ui/hooks/use-workspace-view-model"
 import { Canvas } from "./Canvas"
 import { Toolbar } from "./Toolbar"
+import { MixPanel } from "./MixPanel"
+import { ScopeView } from "./ScopeView"
 
 export function WorkspaceView() {
-  const reactFlow = useReactFlow()
-  const getViewport = reactFlow.getViewport
+  const vm = useWorkspaceViewModel()
 
-  const {
-    nodes,
-    connections,
-    initialViewport,
-    isLoaded,
-    handleCreate,
-    handleContentChange,
-    handleDelete,
-    handleDuplicateNode,
-    handleMove,
-    handleResize,
-    handleNavigatePage,
-    handleUploadPdf,
-    handleCreateConnection,
-    handleRemoveConnection,
-    handleTransformCodeChange,
-    handleTimeoutChange,
-    handleZoomChange,
-    handleDarkModeToggle,
-    handleAddTransformNode,
-    handleAddChatNode,
-    handleSendMessage,
-    handleResetChat,
-    handleModelChange,
-    handleAnnotationCreate,
-    handleAnnotationDelete,
-    handleAnnotationEdit,
-    handleUpdateConnectionLabel,
-    streamingNodeIds,
-    roster,
-    setNodes,
-    nodesRef,
-    connectionsRef,
-    scheduleSave,
-  } = useWorkspace({ getViewport })
-
-  const { aiExecutor } = useAdapters()
-
-  const {
-    handleAddAiTransformNode,
-    handleAiInstructionChange,
-    handleAiModelChange,
-    handleAiInputModeChange,
-    handleAiAutoExecuteToggle,
-    handleExecuteAiTransform,
-    handleOutputModeChange,
-    handleSchemaChange,
-    handleSchemaModeChange,
-  } = useAiTransformHandlers({
-    setNodes, nodesRef, connectionsRef, scheduleSave, aiExecutor, roster,
-  })
-
-  const { blobStorage, pdfRenderer, transformExecutor } = useAdapters()
-  const pipelineDeps = useMemo(() => ({
-    transformExecutor,
-    blobStorage,
-    pdfRenderer,
-  }), [transformExecutor, blobStorage, pdfRenderer])
-
-  const { pipelineResults, rerun } = usePipelineExecution({
-    nodes,
-    connections,
-    deps: pipelineDeps,
-  })
-
-  // Wrap execute to pass pipelineResults at call time (no mutable ref bridge)
-  const executeAiTransform = useCallback(
-    (nodeId: string) => handleExecuteAiTransform(nodeId, pipelineResults),
-    [handleExecuteAiTransform, pipelineResults]
-  )
-
-  const {
-    flowNodes,
-    flowEdges,
-    onNodesChange,
-    onEdgesChange,
-    onNodeDragStop,
-    onConnect,
-    createAtCenter,
-  } = useCanvasBinding({
-    nodes,
-    connections,
-    pipelineResults,
-    streamingNodeIds,
-    onContentChange: handleContentChange,
-    onDelete: handleDelete,
-    onDuplicate: handleDuplicateNode,
-    onMove: handleMove,
-    onResize: handleResize,
-    onNavigatePage: handleNavigatePage,
-    onZoomChange: handleZoomChange,
-    onDarkModeToggle: handleDarkModeToggle,
-    onTransformCodeChange: handleTransformCodeChange,
-    onTimeoutChange: handleTimeoutChange,
-    onRerun: rerun,
-    onSendMessage: handleSendMessage,
-    onResetChat: handleResetChat,
-    onModelChange: handleModelChange,
-    onAnnotationCreate: handleAnnotationCreate,
-    onAnnotationDelete: handleAnnotationDelete,
-    onAnnotationEdit: handleAnnotationEdit,
-    onAiInstructionChange: handleAiInstructionChange,
-    onAiModelChange: handleAiModelChange,
-    onAiInputModeChange: handleAiInputModeChange,
-    onAiAutoExecuteToggle: handleAiAutoExecuteToggle,
-    onAiOutputModeChange: handleOutputModeChange,
-    onAiSchemaChange: handleSchemaChange,
-    onAiSchemaModeChange: handleSchemaModeChange,
-    onAiExecute: executeAiTransform,
-    roster,
-    onCreateConnection: handleCreateConnection,
-    onRemoveConnection: handleRemoveConnection,
-    onUpdateConnectionLabel: handleUpdateConnectionLabel,
-    getViewport,
-  })
-
-  useAiAutoExecute({
-    nodes,
-    connections,
-    onExecute: executeAiTransform,
-  })
-
-  const onUploadPdf = useCallback(
-    async (file: File, position: { x: number; y: number }) => {
-      const result = await handleUploadPdf(file, position)
-      if (!result.ok) {
-        alert(result.reason)
-      }
-    },
-    [handleUploadPdf]
-  )
-
-  if (!isLoaded) {
-    return null
-  }
+  if (!vm.isLoaded) return null
 
   return (
     <>
       <Toolbar
-        onAddNode={() => createAtCenter(handleCreate)}
-        onAddTransform={() => createAtCenter(handleAddTransformNode)}
-        onAddChat={() => createAtCenter(handleAddChatNode)}
-        onAddAiTransform={() => createAtCenter(handleAddAiTransformNode)}
-        onUploadPdf={(file) => createAtCenter((pos) => onUploadPdf(file, pos))}
+        onAddNode={vm.toolbar.onAddNode}
+        onAddTransform={vm.toolbar.onAddTransform}
+        onAddChat={vm.toolbar.onAddChat}
+        onAddAiTransform={vm.toolbar.onAddAiTransform}
+        onUploadPdf={vm.toolbar.onUploadPdf}
+        onAddSource={vm.toolbar.onAddSource}
+        onAddAi={vm.toolbar.onAddAi}
+        onAddCode={vm.toolbar.onAddCode}
       />
-      <Canvas
-        nodes={flowNodes}
-        edges={flowEdges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onNodeDragStop={onNodeDragStop}
-        onConnect={onConnect}
-        initialViewport={initialViewport}
-        onDropPdf={onUploadPdf}
-      />
+      <div className="flex h-full w-full">
+        <div className="flex-1 relative">
+          <Canvas
+            nodes={vm.canvas.flowNodes}
+            edges={vm.canvas.flowEdges}
+            onNodesChange={vm.canvas.onNodesChange}
+            onEdgesChange={vm.canvas.onEdgesChange}
+            onNodeDragStop={vm.canvas.onNodeDragStop}
+            onNodeDoubleClick={vm.canvas.onNodeDoubleClick}
+            onConnect={vm.canvas.onConnect}
+            initialViewport={vm.canvas.initialViewport}
+            onDropPdf={vm.canvas.onDropPdf}
+          />
+        </div>
+        <MixPanel entries={vm.mix.entries} />
+      </div>
+      {vm.scope.focusedCell && (
+        <ScopeView
+          cell={vm.scope.focusedCell}
+          inputs={vm.scope.inputs}
+          inputLegend={vm.scope.inputLegend}
+          health={vm.scope.health}
+          roster={vm.scope.roster}
+          onNavigateToCell={vm.scope.onNavigateToCell}
+          onTrigger={vm.scope.onTrigger}
+          onContentChange={vm.scope.onContentChange}
+          onInstructionChange={vm.scope.onInstructionChange}
+          onCodeChange={vm.scope.onCodeChange}
+          onModelChange={vm.scope.onModelChange}
+          onTimeoutChange={vm.scope.onTimeoutChange}
+          onOutputModeChange={vm.scope.onOutputModeChange}
+          onSchemaChange={vm.scope.onSchemaChange}
+          onSchemaModeChange={vm.scope.onSchemaModeChange}
+          onClose={vm.scope.onClose}
+        />
+      )}
     </>
   )
 }

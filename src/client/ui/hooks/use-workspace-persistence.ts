@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, useEffect, useRef } from "react"
-import type { WorkspaceNode, Connection, Viewport } from "@/kernel/entities"
+import type { WorkspaceNode, Connection, Viewport, Cell } from "@/kernel/entities"
 import { loadWorkspace } from "@/client/domain/use-cases/load-workspace"
 import { saveWorkspace } from "@/client/domain/use-cases/save-workspace"
 import type { StoragePort } from "@/client/domain/ports/storage-port"
@@ -16,10 +16,12 @@ type UseWorkspacePersistenceArgs = {
 export function useWorkspacePersistence({ storage, deletionManifest, getViewport }: UseWorkspacePersistenceArgs) {
   const [nodes, setNodes] = useState<WorkspaceNode[]>([])
   const [connections, setConnections] = useState<Connection[]>([])
+  const [cells, setCells] = useState<Cell[]>([])
   const [initialViewport, setInitialViewport] = useState<Viewport | null>(null)
   const [isLoaded, setIsLoaded] = useState(false)
   const nodesRef = useRef(nodes)
   const connectionsRef = useRef(connections)
+  const cellsRef = useRef(cells)
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const getViewportRef = useRef(getViewport)
   const deletedIdsRef = useRef<string[]>([])
@@ -29,6 +31,7 @@ export function useWorkspacePersistence({ storage, deletionManifest, getViewport
 
   nodesRef.current = nodes
   connectionsRef.current = connections
+  cellsRef.current = cells
   getViewportRef.current = getViewport
 
   const isLoadedRef = useRef(false)
@@ -46,6 +49,7 @@ export function useWorkspacePersistence({ storage, deletionManifest, getViewport
       workspaceNameRef.current = workspace.name
       setNodes(workspace.nodes)
       setConnections(workspace.connections)
+      setCells(workspace.cells ?? [])
       setInitialViewport(workspace.viewport)
       isLoadedRef.current = true
       setIsLoaded(true)
@@ -59,7 +63,7 @@ export function useWorkspacePersistence({ storage, deletionManifest, getViewport
   }, [])
 
   // Debounced save — includes deletion manifest
-  const scheduleSave = useCallback((updatedNodes: WorkspaceNode[], updatedConnections?: Connection[]) => {
+  const scheduleSave = useCallback((updatedNodes: WorkspaceNode[], updatedConnections?: Connection[], updatedCells?: Cell[]) => {
     if (!isLoadedRef.current) return
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
@@ -73,6 +77,7 @@ export function useWorkspacePersistence({ storage, deletionManifest, getViewport
           name: workspaceNameRef.current,
           nodes: updatedNodes,
           connections: updatedConnections ?? connectionsRef.current,
+          cells: updatedCells ?? cellsRef.current,
           viewport: getViewportRef.current(),
         }, ids)
         // Remove only the delivered IDs — preserve any added during the save
@@ -99,10 +104,15 @@ export function useWorkspacePersistence({ storage, deletionManifest, getViewport
         const newNodes = serverState.nodes.filter((n) => !clientNodeIds.has(n.id) && !deletedSet.has(n.id))
         const clientConnIds = new Set(connectionsRef.current.map((c) => c.id))
         const newConns = serverState.connections.filter((c) => !clientConnIds.has(c.id) && !deletedSet.has(c.id))
-        if (newNodes.length === 0 && newConns.length === 0) return
+        const clientCellIds = new Set(cellsRef.current.map((c) => c.id))
+        const newCells = (serverState.cells ?? []).filter((c) => !clientCellIds.has(c.id) && !deletedSet.has(c.id))
+        if (newNodes.length === 0 && newConns.length === 0 && newCells.length === 0) return
         setNodes((prev) => [...prev, ...newNodes])
         if (newConns.length > 0) {
           setConnections((prev) => [...prev, ...newConns])
+        }
+        if (newCells.length > 0) {
+          setCells((prev) => [...prev, ...newCells])
         }
       }).catch(console.error)
     }, 2000)
@@ -121,6 +131,7 @@ export function useWorkspacePersistence({ storage, deletionManifest, getViewport
         name: workspaceNameRef.current,
         nodes: nodesRef.current,
         connections: connectionsRef.current,
+        cells: cellsRef.current,
         viewport: getViewportRef.current(),
       }, deletedIdsRef.current)
     }
@@ -135,8 +146,11 @@ export function useWorkspacePersistence({ storage, deletionManifest, getViewport
     setNodes,
     connections,
     setConnections,
+    cells,
+    setCells,
     nodesRef,
     connectionsRef,
+    cellsRef,
     initialViewport,
     isLoaded,
     scheduleSave,

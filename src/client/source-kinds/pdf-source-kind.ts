@@ -1,9 +1,27 @@
 import type { SourceKindContribution } from "@/kernel/source-kinds"
-import type { PdfNodeData } from "@/kernel/entities"
+import type { PdfNodeData, PdfAnnotation } from "@/kernel/entities"
 import type { BlobStoragePort } from "@/client/domain/ports/blob-storage-port"
 
 interface PdfExtractDeps {
   blobStorage: BlobStoragePort
+}
+
+/**
+ * Snapshot of the PdfNode's viewer state at the time the cell ran.
+ * Frozen so cell code can't accidentally mutate canvas state.
+ */
+type PdfViewerStateSnapshot = Readonly<{
+  currentPage: number
+  totalPages: number
+  filename: string
+  annotations: ReadonlyArray<PdfAnnotation>
+  zoomLevel: number
+  darkMode: boolean
+}>
+
+type PdfRawArtifact = {
+  bytes: ArrayBuffer | Uint8Array
+  viewerState: PdfViewerStateSnapshot
 }
 
 /**
@@ -61,31 +79,66 @@ export const pdfSourceKind: SourceKindContribution = {
     if (!blob) {
       throw new Error(`PDF blob ${pdfNode.blobId} not found`)
     }
-    return await blob.arrayBuffer()
+    const bytes = await blob.arrayBuffer()
+    // Bundle the raw bytes with a snapshot of the PdfNode's viewer state.
+    // The cell author sees both the real pdf.js Document API and the
+    // canvas-side viewer state (current page, annotations, ...) through
+    // the same binding — see parse() for how the augmentation lands.
+    const artifact: PdfRawArtifact = {
+      bytes,
+      viewerState: Object.freeze({
+        currentPage: pdfNode.currentPage,
+        totalPages: pdfNode.totalPages,
+        filename: pdfNode.filename,
+        annotations: Object.freeze([...pdfNode.annotations]),
+        zoomLevel: pdfNode.zoomLevel,
+        darkMode: pdfNode.darkMode,
+      }),
+    }
+    return artifact
   },
 
   parse: async (rawArtifact: unknown, libraryHandle: unknown) => {
-    if (!(rawArtifact instanceof ArrayBuffer) && !(rawArtifact instanceof Uint8Array)) {
-      throw new Error(`pdf source kind: expected ArrayBuffer or Uint8Array, got ${typeof rawArtifact}`)
+    if (
+      typeof rawArtifact !== "object" ||
+      rawArtifact === null ||
+      !("bytes" in rawArtifact) ||
+      !("viewerState" in rawArtifact)
+    ) {
+      throw new Error(`pdf source kind: expected { bytes, viewerState } artifact, got ${typeof rawArtifact}`)
+    }
+    const { bytes, viewerState } = rawArtifact as PdfRawArtifact
+    if (!(bytes instanceof ArrayBuffer) && !(bytes instanceof Uint8Array)) {
+      throw new Error(`pdf source kind: expected ArrayBuffer or Uint8Array bytes, got ${typeof bytes}`)
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const pdfjs = libraryHandle as any
-    const data = rawArtifact instanceof ArrayBuffer ? new Uint8Array(rawArtifact) : rawArtifact
+    const data = bytes instanceof ArrayBuffer ? new Uint8Array(bytes) : bytes
     const loadingTask = pdfjs.getDocument({ data })
     const doc = await loadingTask.promise
+    // Augment the real pdf.js Document with the canvas-side viewer state.
+    // The cell author binds to the same Document they'd get from
+    // `pdfjs.getDocument(...).promise`, plus one extra read-only property
+    // exposing the user's current viewing context. No wrapper hides the
+    // pdf.js API.
+    doc.viewerState = viewerState
     return doc
   },
 
   typeDefFragment: `/**
  * pdf.js Document object — the real thing the pdfjs-dist library returns
- * from getDocument().promise. Cell authors call methods on this directly:
+ * from getDocument().promise, augmented with one extra property: viewerState,
+ * a snapshot of the PdfNode's current viewing context on the canvas.
  *
- *     const page = await pdf.getPage(1)
+ * Cell authors call pdf.js methods directly:
+ *
+ *     const pdf = input.paper
+ *     const page = await pdf.getPage(pdf.viewerState.currentPage)
  *     const tc = await page.getTextContent()
  *     return tc.items.map(i => i.str).join(' ')
  *
- * For the full API surface see the pdf.js documentation. The shape below
- * is a working subset for IntelliSense.
+ * For the full pdf.js API surface see the pdf.js documentation. The shape
+ * below is a working subset for IntelliSense.
  */
 interface PdfJsDocument {
   /** Total number of pages in the document. */
@@ -98,6 +151,30 @@ interface PdfJsDocument {
   getOutline(): Promise<PdfJsOutlineNode[] | null>
   /** Release the document and free its worker resources. */
   destroy(): Promise<void>
+  /**
+   * Snapshot of the PdfNode's viewer state at the moment this cell ran.
+   * Frozen — mutations have no effect on the canvas.
+   */
+  readonly viewerState: {
+    /** 1-indexed page the user is currently viewing. */
+    readonly currentPage: number
+    /** Total page count (mirrors numPages, included for convenience). */
+    readonly totalPages: number
+    /** Original PDF filename. */
+    readonly filename: string
+    /** Regions the user has annotated on the PDF, in document order. */
+    readonly annotations: ReadonlyArray<{
+      readonly id: string
+      readonly page: number
+      readonly region: { readonly x: number; readonly y: number; readonly width: number; readonly height: number }
+      readonly label: string
+      readonly text: string
+    }>
+    /** PDF viewer zoom level (1 = 100%). */
+    readonly zoomLevel: number
+    /** Whether the PDF viewer is in dark mode. */
+    readonly darkMode: boolean
+  }
 }
 
 interface PdfJsPage {

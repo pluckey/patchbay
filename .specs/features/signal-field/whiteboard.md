@@ -2,7 +2,7 @@
 feature: signal-field
 center: "This feature shifts the user's primary activity from configuring individual components to composing connections between them, and from prescribing behavior to observing emergence."
 center_test:
-  excludes: "A feature that enriches the internal editing experience of a single cell type — a multi-tab code editor, a PDF annotation layer, a richer AI parameter interface — deepens component-level engagement rather than composition"
+  excludes: "A feature whose primary deliverable enriches the internal editing experience of a single cell type — a multi-tab code editor, a PDF annotation layer — at the expense of composition. Editing capability subordinate to compositional structure (e.g., The Scope's three-column layout emphasizing I/O context) is permissible."
   boundary: "A template library that lets users browse and insert pre-wired subgraphs almost serves this center, but if templates become a substitute for spatial thinking rather than a seed for it, the medium has been circumvented"
 stage: whiteboard
 intensity: deep
@@ -20,7 +20,7 @@ The current workspace front-loads **classification** ("what kind of thing do I n
 
 ## Center Test
 
-**Exclusion test:** A feature that enriches the internal editing experience of a single cell type — a multi-tab code editor, a PDF annotation layer, a richer AI parameter interface — would be a good feature idea that this center *excludes*. It deepens component-level engagement rather than composition. Such features are permissible only if subordinate to the composition experience, never as the primary investment.
+**Exclusion test:** A feature whose primary deliverable enriches the internal editing experience of a single cell type — a multi-tab code editor, a PDF annotation layer — at the expense of composition would be a good feature idea that this center *excludes*. Editing capability subordinate to compositional structure is permissible and often necessary: The Scope's three-column layout emphasizing I/O context over the editor, health indicators that surface topology-level information, and input navigation that pulls the user back to the canvas are all examples of editing capability that serves composition rather than displacing it.
 
 **Boundary discrimination:** A "template library" that lets users browse and insert pre-wired subgraphs *almost* serves this center (it is about composition), but the center should say no if templates become a substitute for spatial thinking. If users browse a catalog rather than compose on the canvas, the medium has been circumvented. Templates that seed an empty canvas for further wiring: acceptable. Templates that replace the composition act: excluded.
 

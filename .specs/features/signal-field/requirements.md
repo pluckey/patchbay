@@ -78,11 +78,13 @@ A persistent, always-visible UI element shows the composed output of all termina
 ### ac-cell-creation-simple: New cell in one action with type selection
 > **Center:** Minimal creation friction keeps the user's attention on the canvas — the user thinks "I need another piece here" and places it, returning immediately to compositional decisions.
 
-Creating a new cell requires one action and produces an immediately usable cell on the canvas. The user selects Source or AI at creation time (two options, not a burden). The cell appears with simple inline editing — the user can enter content (Source) or write an instruction (AI) directly, without opening a separate editing view.
+Creating a new cell requires one action and produces an immediately usable cell on the canvas. The user selects Source, Code, or AI at creation time (three options, not a burden). The cell appears with simple inline editing — the user can enter content (Source), write code (Code), or write an instruction (AI) directly, without opening a separate editing view. Once the cell has content, the card transitions to output-preview mode; further editing happens in The Scope.
 
 ---
 
 ### Phase 1b — "Precision and Polish"
+
+*This remediation delivers Phase 1a + most of Phase 1b in a single pass. Deferred from Phase 1b to a follow-up spec: ac-cell-creation-compositional (drag-from-port) and ac-connection-feedback (wiring produces visible change).*
 
 ### ac-code-cell: Deterministic transform completes the transfer primitive set
 > **Center:** Code cells add deterministic transformation to the composition alphabet — the user can now express "extract, filter, format" as visible steps in the signal flow rather than hiding them inside AI prompts.
@@ -92,7 +94,7 @@ The system adds a third cell type: Code (receives inputs, executes user-written 
 ### ac-fan-in-keyed-input: Multi-source inputs are labeled and orderable
 > **Center:** Fan-in semantics make multi-source composition predictable — the user reasons about which sources feed which cell and in what order, keeping attention on topology structure.
 
-When multiple cells connect to a single cell's input, the receiving cell gets a structured input where each source's contribution is identified by the source cell's title. The ordering of inputs is visible and user-controllable. Code cells can reference specific inputs by their source titles in their logic. AI cells receive all inputs as labeled context in the user-specified order. When a source cell is renamed, all downstream cells that reference its title as an input key update their display to reflect the new name. The system handles renames gracefully — downstream cells are never silently broken by an upstream rename. *Known trade-off: title-keyed inputs couple naming to composition. This is accepted as the cost of human-readable fan-in references, which serve compositional legibility.*
+When multiple cells connect to a single cell's input, the receiving cell gets a structured input where each source's contribution is identified by the source cell's title. The ordering of inputs is visible and user-controllable. Code cells can reference specific inputs by their source titles in their logic. AI cells receive all inputs as labeled context in the user-specified order. When a source cell is renamed, all downstream cells that reference its title as an input key update their resolved inputs and display (input legend, Scope inputs column) to reflect the new name. Code cells that reference the old title by string in their logic must be updated manually by the user; the input legend in the Scope shows the current mapping to aid this. *Known trade-off: title-keyed inputs couple naming to composition and to Code cell logic. This is accepted as the cost of human-readable fan-in references, which serve compositional legibility.*
 
 ### ac-the-scope: Focused editing as three-column signal view
 > **Center:** The Scope shows a cell's full signal path (inputs, transformation, output) in one view, reinforcing compositional thinking even during the brief act of component configuration. It creates pull back to the canvas by making topological context the dominant visual element.

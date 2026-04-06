@@ -29,7 +29,7 @@ last_modified: 2026-04-05T22:00:00Z
 
 | ID | Name | Type | Action | Key Attributes | Traces to ACs |
 |---|---|---|---|---|---|
-| da-cell-entity | Cell | Kernel Entity | Create new discriminated union: SourceCellData, AiCellData, CodeCellData (Phase 1b). BaseCell: id, title, position, dimensions?, createdAt, updatedAt, output?: CellOutput. CellOutput: { status: 'success' \| 'error' \| 'running', text?: string, error?: string, durationMs?: number } | Replaces WorkspaceNode for new cells. Coexists with legacy types via strangler fig. Title is user-editable, used as fan-in key. | ac-two-transfer-primitives, ac-code-cell, ac-uniform-cell-presentation |
+| da-cell-entity | Cell | Kernel Entity | Create new discriminated union: SourceCellData, AiCellData, CodeCellData. BaseCell: id, title, position, dimensions?, createdAt, updatedAt, output?: CellOutput, lastInputHash?: string. CellOutput: { status: 'success' \| 'error' \| 'running', text?: string, error?: string, durationMs?: number }. AiCellData includes outputMode: 'text' \| 'structured', schemaMode: 'single' \| 'collection', schema: SchemaField[] for structured output support. | Replaces WorkspaceNode for new cells. Coexists with legacy types via strangler fig. Title is user-editable, used as fan-in key. Structured output fields on AI cells enable reliable AI→Code composition without text parsing. lastInputHash stores a deterministic hash of resolved inputs at last execution, enabling pure staleness computation. | ac-two-transfer-primitives, ac-code-cell, ac-uniform-cell-presentation |
 | da-cell-health | CellHealth | Kernel Entity | Add health: 'current' \| 'stale' \| 'error' to BaseCell in Phase 1b | Derived from comparison of input state at last execution vs. current input state | ac-health-indication |
 | da-connection-gate | Connection (extended) | Kernel Entity | Add gate: 'open' \| 'latched' field to Connection entity (default 'open') | Present in schema from Phase 1a. Always 'open' until Phase 3 enables toggling. | ac-connection-gate, dc-cycle-aware-engine |
 | da-execution-mode | Workspace (extended) | Kernel Entity | Add executionMode: 'manual' \| 'automatic' to Workspace entity (default 'manual') | Present in schema from Phase 1a. Always 'manual' until Phase 2 enables toggling. | ac-execution-mode-toggle |
@@ -47,7 +47,7 @@ last_modified: 2026-04-05T22:00:00Z
 | da-validate-connection-signal-field | validateConnection (updated) | Kernel Transform | Modify existing `validate-connection.ts`. Reject connections targeting Source cells. Permit multiple inputs to AI/Code cells. | Phase 1a: still rejects cycles. Phase 3: cycle rejection lifted when gate support is active. Rejects cross-type connections (Cell↔WorkspaceNode). Strangler fig boundary enforced at validation time. Backward-compatible with legacy node types. | ac-directed-connections |
 | da-resolve-cell-inputs | resolveCellInputs | Kernel Transform | New file `resolve-cell-inputs.ts`. Pure function: (cellId, cells, connections, outputs?) -> Record<string, string> | Returns Record&lt;string, string&gt; keyed by source cell title. Phase 1a: single or multiple inputs each keyed by title. Phase 1b: adds user-controllable ordering. Uses cached outputs from prior cascade steps. | ac-fan-in-keyed-input, ac-manual-trigger-cascade |
 | da-update-cell-title | updateCellTitle | Kernel Transform | New file `update-cell-title.ts` (Phase 1b). Pure function: (cell, newTitle) -> Cell | Immutable update of title field | ac-fan-in-keyed-input |
-| da-compute-staleness | computeStaleness | Kernel Transform | New file `compute-staleness.ts` (Phase 1b). Pure function: (cells, connections) -> Map<cellId, CellHealth> | Propagates staleness downstream: if a cell's input changed since last execution, it and all downstream are stale | ac-health-indication |
+| da-compute-staleness | computeStaleness | Kernel Transform | New file `compute-staleness.ts` (Phase 1b). Pure function: (cells, connections) -> Map<cellId, CellHealth> | Compares hash of current resolveCellInputs output against cell.lastInputHash. Cells where hashes differ (or lastInputHash is absent and cell has upstream connections) are stale. Propagates transitively downstream. | ac-health-indication |
 | da-cell-inner-state | extractCellInnerState | Kernel Transform | New file `extract-cell-inner-state.ts` (Phase 2). Pure function: (cell) -> ChatContext | Source: content. Code: code + last result + errors. AI: instruction + last input + last output + model. | ac-chat-observation |
 | da-toggle-gate | toggleGate | Kernel Transform | New file `toggle-gate.ts` (Phase 3). Pure function: (connection) -> Connection | Toggles gate between 'open' and 'latched' | ac-connection-gate |
 
@@ -55,14 +55,14 @@ last_modified: 2026-04-05T22:00:00Z
 
 | ID | Name | Type | Action | Key Attributes | Traces to ACs |
 |---|---|---|---|---|---|
-| da-execute-cascade | executeCascade | Use Case | New file `execute-cascade.ts`. Orchestrates: build schedule -> iterate steps -> resolve inputs -> execute cell -> collect outputs | Takes ports: { aiExecutor: AiExecutorPort, transformExecutor?: TransformExecutorPort }. Returns Map<cellId, CellOutput>. Source cells produce output from content (no port needed). AI cells use AiExecutorPort. Code cells use TransformExecutorPort (Phase 1b). | ac-manual-trigger-cascade, dc-cycle-aware-engine |
+| da-execute-cascade | executeCascade | Use Case | New file `execute-cascade.ts`. Orchestrates: build schedule -> iterate steps -> resolve inputs -> execute cell -> collect outputs -> set lastInputHash | Takes ports: { aiExecutor: AiExecutorPort, transformExecutor: TransformExecutorPort }. Returns Map<cellId, CellOutput> plus updated cells with lastInputHash set to deterministic hash of resolved inputs used for each execution. Source cells produce output from content (no port needed). AI cells use AiExecutorPort. Code cells use TransformExecutorPort. | ac-manual-trigger-cascade, dc-cycle-aware-engine |
 | da-chat-write-access | chatModifyCell | Use Case | New file `chat-modify-cell.ts` (Phase 2). Applies chat-suggested modifications to a cell's configuration | Receives cell + modification, returns updated cell. Validates modification is within cell type's editable fields. | ac-chat-intervention |
 
 ### Adapters
 
 | ID | Name | Type | Action | Key Attributes | Traces to ACs |
 |---|---|---|---|---|---|
-| da-cell-flow-mapper | Cell flow mapper | Adapter | Update `flow-node-mapper.ts`. Add mapping for Cell types -> single 'cellNode' xyflow type. Legacy WorkspaceNode types continue mapping to existing xyflow types. | Single callback set for all cell types: onTitleChange, onContentChange (Source), onInstructionChange (AI), onCodeChange (Code), onTrigger, onDelete, onDuplicate, onResizeEnd | ac-uniform-cell-presentation |
+| da-cell-flow-mapper | Cell flow mapper | Adapter | Update `flow-node-mapper.ts`. Add mapping for Cell types -> single 'cellNode' xyflow type. Legacy WorkspaceNode types continue mapping to existing xyflow types. | Card callbacks only: onOpenScope, onTrigger, onDelete, onDuplicate, onResizeEnd. Editing callbacks (onContentChange, onInstructionChange, onCodeChange, onModelChange, onTimeoutChange, onOutputModeChange, onSchemaChange, onSchemaModeChange) are consumed by ScopeView, not the flow node. | ac-uniform-cell-presentation |
 | da-workspace-migration | Workspace migration | Adapter (server) | New file `server/storage/migrate-to-signal-field.ts`. Idempotent migration: markdown->source, transform->code, ai-transform->ai. PDF and chat nodes preserved as legacy read-only. | Triggered lazily on workspace load. Writes migration marker to workspace data. Preserves original data as backup. | (data preservation) |
 | da-drag-from-port-creation | Drag-from-port creation | Adapter | New handler in canvas adapter (Phase 1b). Intercepts xyflow's onConnectEnd when dropping on empty canvas. Creates new cell + connection. | Uses xyflow's screenToFlowPosition for placement. Triggers cell type selection (Source/AI/Code). | ac-cell-creation-compositional |
 
@@ -71,10 +71,13 @@ last_modified: 2026-04-05T22:00:00Z
 | ID | Name | Type | Action | Key Attributes | Traces to ACs |
 |---|---|---|---|---|---|
 | da-cell-shell | CellShell | Component | New file `CellShell.tsx`. Replaces NodeShell for cell types. | Props: hasInput (controls target Handle), title, health?, onDelete, onDuplicate, onResizeEnd. Uniform: bg-background, border-border, rounded-lg. No type badges. | ac-uniform-cell-presentation |
-| da-cell-node-component | CellNode | Component | New file `CellNode.tsx`. Single xyflow node component for all cell types. | Renders inside CellShell. Shows: title (editable), output preview (truncated), inline editor (Phase 1a: simple text area). Trigger button on hover. No type-specific coloring. | ac-uniform-cell-presentation, ac-output-preview-as-identity, ac-cell-creation-simple |
+| da-cell-node-component | CellNode | Component | New file `CellNode.tsx`. Single xyflow node component for all cell types. Output preview at rest (truncated ~3 lines). Creation state machine: empty cells show inline editor, cells with content show output preview only. Double-click opens Scope. | Renders inside CellShell. Health dot in header. Trigger button on hover (AI/Code). No type-specific coloring. No inline editing once cell has content — editing moves to The Scope. | ac-uniform-cell-presentation, ac-output-preview-as-identity, ac-cell-creation-simple |
 | da-mix-panel | MixPanel | Component | New file `MixPanel.tsx`. Always-visible panel showing terminal cell outputs. | Persistent right-side panel. Shows MixEntry[] with cell titles as headers and output text. Updates on topology or output changes. Subordinate visual weight to canvas (narrow panel, not takeover). | ac-the-mix |
-| da-cell-toolbar | CellToolbar | Component | New file or modify `Toolbar.tsx`. Offers Source and AI creation (Phase 1a), +Code (Phase 1b). | Two buttons in Phase 1a. Three in Phase 1b. Adds to current toolbar. Legacy node creation buttons remain during strangler fig, to be retired only when cell types subsume legacy capabilities. | ac-cell-creation-simple |
-| da-scope-view | ScopeView | Component | New file `ScopeView.tsx` (Phase 1b). Three-column focused editing view. | Left: connected inputs (navigable, click -> return to canvas with source selected). Center: type-specific editor. Right: current output + health. I/O visual weight >= editor. One Scope open at a time. | ac-the-scope |
+| da-cell-toolbar | CellToolbar | Component | Modify `Toolbar.tsx`. Three primary buttons: Source, AI, Code. Legacy node creation buttons in collapsible 'Legacy' section. | Source/AI/Code always visible as primary creation options. Legacy buttons accessible but visually demoted. Retire legacy section when cells fully subsume legacy capabilities. | ac-cell-creation-simple |
+| da-scope-view | ScopeView | Component | New file `ScopeView.tsx`. Bottom panel splitting canvas vertically (~40% default height, resizable drag handle, collapsible). Three-column layout: Inputs (20%) \| Editor (50%) \| Output (30%). Opens on double-click or Enter on selected cell. ESC or close button collapses. | Left: connected inputs (navigable — click closes Scope, selects source on canvas). Center: type-specific editor delegated to da-scope-source-editor, da-scope-code-editor, or da-scope-ai-editor. Right: output (full text, scrollable) + trigger/run button (AI/Code) + health dot + duration. One Scope at a time. Reactive: reads cells/connections state via da-use-scope-data, updates live on cascade completion. ScopeView is sibling to Canvas+MixPanel inside WorkspaceView. | ac-the-scope |
+| da-scope-source-editor | ScopeSourceEditor | Component | New file `ScopeSourceEditor.tsx`. Markdown editor with edit/preview toggle for Source cell Scope. | Adapts MarkdownContent patterns (ReactMarkdown, draft state, toggle). Full-width, no xyflow constraints. Reused as-is from legacy — extra stopPropagation calls are harmless outside ReactFlow. | ac-the-scope |
+| da-scope-code-editor | ScopeCodeEditor | Component | New file `ScopeCodeEditor.tsx`. Code editor for Code cell Scope. | Adapts TransformCodeEditor (lazy CodeMirror) + input legend (label → sourceName) + timeout selector dropdown. Full-width. | ac-the-scope, ac-code-cell |
+| da-scope-ai-editor | ScopeAiEditor | Component | New file `ScopeAiEditor.tsx`. AI editor for AI cell Scope. | Instruction textarea + model selector (Popover with grouped roster) + output mode toggle (text/structured) + schema builder (SchemaBuilder) + schema mode toggle (single/collection). Adapts AiTransformNode patterns. | ac-the-scope, ac-two-transfer-primitives |
 | da-chat-overlay | ChatOverlay | Component | New file `ChatOverlay.tsx` (Phase 2). Chat panel overlaid on selected cell. | Not a cell type. Receives inner state via extractCellInnerState. Can modify observed cell. Ephemeral history (component state). | ac-chat-observation, ac-chat-intervention |
 
 ### Hooks
@@ -83,6 +86,8 @@ last_modified: 2026-04-05T22:00:00Z
 |---|---|---|---|---|---|
 | da-use-cascade | useCascade | Hook | New file `use-cascade.ts`. Bridges trigger UI action to executeCascade use case. | Receives ports from useAdapters(). Returns triggerCell(cellId) -> Promise<void>. Updates cell outputs in workspace state after cascade completes. | ac-manual-trigger-cascade |
 | da-use-mix | useMix | Hook | New file `use-mix.ts`. Computes Mix state from workspace cells + connections. | Calls computeTerminalCells + computeMix. Memoized. Updates on topology or output changes. | ac-the-mix |
+| da-use-scope-state | useScopeState | Hook | New file `use-scope-state.ts`. Manages Scope open/close and focused cell ID. | Returns { scopeCellId, openScope(cellId), closeScope() }. One Scope at a time. Closes on ESC. Opens on double-click or Enter. | ac-the-scope |
+| da-use-scope-data | useScopeData | Hook | New file `use-scope-data.ts`. Reactive input resolution for the focused cell. | Calls resolveCellInputs for focused cell. Re-renders on cells/connections state changes. Returns resolved inputs + connected cell metadata for Inputs column. | ac-the-scope, ac-fan-in-keyed-input |
 
 ---
 
@@ -134,13 +139,20 @@ HOOKS (depend on kernel transforms + use cases + useAdapters)
   da-use-mix                                        │
     ├── imports da-compute-terminal-cells            │
     └── imports da-compute-mix                       │
+  da-use-scope-state ← React state (cellId, open/close)
+  da-use-scope-data                                  │
+    ├── imports da-resolve-cell-inputs               │
+    └── reads cells/connections state                │
                                                     │
 COMPONENTS (depend on other components, kernel types via props)
   da-cell-shell ← @xyflow/react (Handle, NodeResizer)
   da-cell-node-component ← da-cell-shell             │
   da-mix-panel ← receives MixEntry[] via props       │
   da-cell-toolbar ← receives callbacks via props     │
-  da-scope-view ← receives cell data via props       │
+  da-scope-view ← da-scope-source-editor, da-scope-code-editor, da-scope-ai-editor
+  da-scope-source-editor ← adapts MarkdownContent    │
+  da-scope-code-editor ← adapts TransformCodeEditor  │
+  da-scope-ai-editor ← adapts AiTransformNode patterns
   da-chat-overlay ← receives inner state via props   │
 ```
 
@@ -170,10 +182,11 @@ page.tsx
   │     ├── WorkspaceSidepanel (unchanged)
   │     └── CanvasProvider (unchanged)
   │           ├── Canvas.tsx (add 'cellNode' to nodeTypes)
-  │           ├── CellToolbar (replaces Toolbar)
-  │           ├── MixPanel (NEW -- always visible)
-  │           └── WorkspaceView (updated for cell operations)
-  └── Adapters: existing + no new ports needed for Phase 1a
+  │           ├── CellToolbar (Source/AI/Code primary + Legacy collapsible)
+  │           ├── MixPanel (right side, always visible)
+  │           ├── ScopeView (bottom panel, opens on double-click)
+  │           └── WorkspaceView (updated for cell operations + Scope wiring)
+  └── Adapters: existing, transformExecutor now required for cascade
 ```
 
 ---
@@ -348,6 +361,7 @@ type BaseCell = {
   createdAt: number
   updatedAt: number
   output?: CellOutput
+  lastInputHash?: string  // deterministic hash of resolved inputs at last execution
 }
 
 type SourceCellData = BaseCell & {
@@ -360,6 +374,9 @@ type AiCellData = BaseCell & {
   instruction: string
   provider: string
   model: string
+  outputMode: 'text' | 'structured'
+  schemaMode: 'single' | 'collection'
+  schema: SchemaField[]
 }
 
 type CodeCellData = BaseCell & {

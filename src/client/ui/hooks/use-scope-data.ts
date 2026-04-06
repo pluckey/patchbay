@@ -2,12 +2,16 @@
 
 import { useMemo } from 'react'
 import type { Cell, Connection, InputLegendEntry, WorkspaceNode } from '@/kernel/entities'
-import { resolveCellInputs } from '@/kernel/transforms'
+
+const PREVIEW_LENGTH = 400
+
+export type ScopeInputKind = 'cell' | 'markdown' | 'pdf'
 
 export type ScopeInput = {
-  cellId: string
+  cellId: string // source identifier (cell or node id)
   title: string
   text: string
+  kind: ScopeInputKind
 }
 
 export type ScopeData = {
@@ -15,12 +19,16 @@ export type ScopeData = {
   inputLegend: InputLegendEntry[]
 }
 
+function clip(text: string): string {
+  if (text.length <= PREVIEW_LENGTH) return text
+  return text.slice(0, PREVIEW_LENGTH) + '…'
+}
+
 export function useScopeData(
   cellId: string | null,
   cells: Cell[],
   connections: Connection[],
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _nodes: WorkspaceNode[],
+  nodes: WorkspaceNode[],
 ): ScopeData {
   return useMemo(() => {
     if (cellId === null) {
@@ -29,32 +37,66 @@ export function useScopeData(
 
     const incomingConnections = connections.filter((c) => c.targetId === cellId)
     const cellMap = new Map(cells.map((c) => [c.id, c]))
-
-    const resolvedInputs = resolveCellInputs(cellId, cells, connections)
+    const nodeMap = new Map(nodes.map((n) => [n.id, n]))
 
     const inputs: ScopeInput[] = []
     const inputLegend: InputLegendEntry[] = []
 
     for (const connection of incomingConnections) {
       const sourceCell = cellMap.get(connection.sourceId)
-      if (!sourceCell) continue
+      if (sourceCell) {
+        const out = sourceCell.output
+        const text = out && out.status === 'success' ? clip(out.text) : ''
+        inputs.push({
+          cellId: sourceCell.id,
+          title: sourceCell.title,
+          text,
+          kind: 'cell',
+        })
+        inputLegend.push({
+          label: connection.label,
+          sourceName: sourceCell.title,
+          sourceType: 'derived',
+        })
+        continue
+      }
 
-      const resolved = resolvedInputs[connection.label]
-      if (resolved === undefined) continue
-
-      inputs.push({
-        cellId: sourceCell.id,
-        title: sourceCell.title,
-        text: resolved.text,
-      })
-
-      inputLegend.push({
-        label: connection.label,
-        sourceName: sourceCell.title,
-        sourceType: sourceCell.type,
-      })
+      const sourceNode = nodeMap.get(connection.sourceId)
+      if (sourceNode) {
+        if (sourceNode.type === 'markdown') {
+          inputs.push({
+            cellId: sourceNode.id,
+            title: connection.label,
+            text: clip(sourceNode.content),
+            kind: 'markdown',
+          })
+          inputLegend.push({
+            label: connection.label,
+            sourceName: connection.label,
+            sourceType: 'markdown',
+          })
+        } else if (sourceNode.type === 'pdf') {
+          const annotationCount = sourceNode.annotations.length
+          const summary =
+            `${sourceNode.filename} · ${sourceNode.totalPages} pages` +
+            (annotationCount > 0 ? ` · ${annotationCount} annotations` : '')
+          inputs.push({
+            cellId: sourceNode.id,
+            title: sourceNode.filename,
+            text: summary,
+            kind: 'pdf',
+          })
+          inputLegend.push({
+            label: connection.label,
+            sourceName: sourceNode.filename,
+            sourceType: 'pdf',
+          })
+        }
+        // Other legacy node kinds are not valid sources for cells per
+        // validateConnection, so we ignore them here.
+      }
     }
 
     return { inputs, inputLegend }
-  }, [cellId, cells, connections])
+  }, [cellId, cells, connections, nodes])
 }

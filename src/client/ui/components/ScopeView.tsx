@@ -13,6 +13,7 @@ interface ScopeInput {
   cellId: string
   title: string
   text: string
+  kind: 'cell' | 'markdown' | 'pdf'
 }
 
 type OutputMode = "text" | "structured"

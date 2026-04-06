@@ -48,7 +48,7 @@ export type WorkspaceViewModel = {
   }
   scope: {
     focusedCell: Cell | null
-    inputs: Array<{ cellId: string; title: string; text: string }>
+    inputs: Array<{ cellId: string; title: string; text: string; kind: 'cell' | 'markdown' | 'pdf' }>
     inputLegend: InputLegendEntry[]
     health: StalenessStatus | undefined
     roster: ModelRosterEntry[]

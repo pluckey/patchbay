@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback } from "react"
+import { flushSync } from "react-dom"
 import type { Cell, Connection, WorkspaceNode } from "@/kernel/entities"
 import { executeCascade } from "@/client/domain/use-cases/execute-cascade"
 import { useAdapters } from "@/client/ui/app/adapters-context"
@@ -38,8 +39,15 @@ export function useCascade({
         { aiExecutor, transformExecutor, blobStorage, pdfRenderer },
         // Stream cell outputs as each schedule step completes — a fast Code
         // cell's result appears immediately rather than waiting for a slow
-        // downstream AI cell.
-        (partialCells) => setCells(partialCells),
+        // downstream AI cell. flushSync forces React to commit the partial
+        // state to the DOM before the cascade's next `await` (React 18+
+        // automatic batching otherwise defers the render until the entire
+        // async function completes, defeating the streaming).
+        (partialCells) => {
+          flushSync(() => {
+            setCells(partialCells)
+          })
+        },
       )
       setCells(updatedCells)
       // CRITICAL: always pass nodesRef.current — never an empty array

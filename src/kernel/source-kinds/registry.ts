@@ -25,18 +25,33 @@ export class SourceKindRegistry {
   private readonly byBindingName = new Map<string, string>() // bindingName → kind
 
   /**
-   * Registers a contribution. Throws SourceKindRegistryError if the kind
-   * is already registered (with a different contribution) or if the
-   * binding name collides with an already-registered kind. Re-registering
-   * the same contribution object is a no-op (idempotent), so importing the
-   * registration module twice does not throw.
+   * Registers a contribution. Idempotent for re-registration of the same
+   * contribution object, AND for hot-reload of a fresh object instance for
+   * the same (kind, bindingName) pair — Next.js Fast Refresh re-evaluates
+   * contribution modules, producing new object references for what is
+   * semantically the same contribution. Treating those as a real conflict
+   * would break dev-time edits to contribution files.
+   *
+   * Throws SourceKindRegistryError when the conflict is real:
+   *   - Same kind, different binding name (the contribution actually changed
+   *     identity in a way that breaks the cell author's mental model)
+   *   - Same binding name, different kind (two unrelated kinds fighting for
+   *     the same variable name in cell code)
    */
   register(contribution: SourceKindContribution): void {
     const existing = this.byKind.get(contribution.kind)
     if (existing) {
       if (existing === contribution) return // idempotent re-registration
+      if (existing.bindingName === contribution.bindingName) {
+        // Hot-reload replacement: same kind, same binding name, fresh object
+        // reference. Update the byKind entry; byBindingName already maps to
+        // this kind, no change needed.
+        this.byKind.set(contribution.kind, contribution)
+        return
+      }
       throw new SourceKindRegistryError(
-        `Source kind "${contribution.kind}" is already registered with a different contribution.`,
+        `Source kind "${contribution.kind}" is already registered with a different binding name ` +
+          `("${existing.bindingName}" vs incoming "${contribution.bindingName}").`,
       )
     }
 

@@ -17,24 +17,33 @@ export function validateConnection(
     return { valid: false, reason: "Cannot connect a node to itself." }
   }
 
-  // Cell-aware validation: reject cross-type connections and source-cell targets
+  // Cell-aware validation: targeted cross-type allow + source-cell target rejection
   if (cells && cells.length > 0) {
-    const sourceIsCell = cells.some((c) => c.id === sourceId)
-    const targetIsCell = cells.some((c) => c.id === targetId)
-    const sourceIsNode = nodes.some((n) => n.id === sourceId)
-    const targetIsNode = nodes.some((n) => n.id === targetId)
+    const sourceCell = cells.find((c) => c.id === sourceId)
+    const targetCell = cells.find((c) => c.id === targetId)
+    const sourceNode = nodes.find((n) => n.id === sourceId)
+    const targetNodeForCellRules = nodes.find((n) => n.id === targetId)
 
-    // Reject Cell↔WorkspaceNode cross-type connections
-    if ((sourceIsCell && targetIsNode) || (sourceIsNode && targetIsCell)) {
-      return { valid: false, reason: "Cannot connect cells to legacy nodes." }
+    // Reject cell → legacy node (reverse direction stays blocked)
+    if (sourceCell && targetNodeForCellRules) {
+      return { valid: false, reason: "Cells cannot feed into legacy nodes." }
     }
 
-    // Reject connections targeting a source cell
-    if (targetIsCell) {
-      const targetCell = cells.find((c) => c.id === targetId)
-      if (targetCell && targetCell.type === "source") {
-        return { valid: false, reason: "Source cells cannot receive input." }
+    // Legacy node → cell: only pdf|markdown → code|ai is permitted
+    if (sourceNode && targetCell) {
+      const sourceKindOk = sourceNode.type === "pdf" || sourceNode.type === "markdown"
+      const targetKindOk = targetCell.type === "code" || targetCell.type === "ai"
+      if (!sourceKindOk) {
+        return { valid: false, reason: "Only PDF and markdown nodes can feed into cells." }
       }
+      if (!targetKindOk) {
+        return { valid: false, reason: "Only code and AI cells can receive input from legacy nodes." }
+      }
+    }
+
+    // Reject connections targeting a source cell (cell→source-cell or node→source-cell)
+    if (targetCell && targetCell.type === "source") {
+      return { valid: false, reason: "Source cells cannot receive input." }
     }
   }
 

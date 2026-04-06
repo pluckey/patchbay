@@ -9,10 +9,37 @@ import { computeMix } from '../compute-mix.ts'
 import { buildExecutionSchedule } from '../build-execution-schedule.ts'
 import { resolveCellInputs } from '../resolve-cell-inputs.ts'
 import { computeStaleness } from '../compute-staleness.ts'
+import { validateConnection } from '../validate-connection.ts'
 import type { Cell } from '../../entities/cell.ts'
 import type { Connection } from '../../entities/connection.ts'
+import type { MarkdownNodeData, PdfNodeData, ChatNodeData, AiTransformNodeData, TransformNodeData, WorkspaceNode } from '../../entities/workspace-node.ts'
 
 const pos = { x: 0, y: 0 }
+
+// Test fixtures for legacy WorkspaceNodes
+function makeMarkdownNode(id: string, content = ''): MarkdownNodeData {
+  return { id, type: 'markdown', content, position: pos, createdAt: 0, updatedAt: 0 }
+}
+function makePdfNode(id: string, filename = 'test.pdf'): PdfNodeData {
+  return {
+    id, type: 'pdf', blobId: 'blob-' + id, filename,
+    currentPage: 1, totalPages: 1, zoomLevel: 1, darkMode: false,
+    annotations: [], position: pos, createdAt: 0, updatedAt: 0,
+  }
+}
+function makeChatNode(id: string): ChatNodeData {
+  return { id, type: 'chat', messages: [], provider: 'anthropic', model: 'claude', position: pos, createdAt: 0, updatedAt: 0 }
+}
+function makeTransformNode(id: string): TransformNodeData {
+  return { id, type: 'transform', transformCode: '', timeoutMs: 5000, position: pos, createdAt: 0, updatedAt: 0 }
+}
+function makeAiTransformNode(id: string): AiTransformNodeData {
+  return {
+    id, type: 'ai-transform', instruction: '', provider: 'anthropic', model: 'claude',
+    autoExecute: false, inputMode: 'concat', outputMode: 'text', schemaMode: 'single', schema: [],
+    position: pos, createdAt: 0, updatedAt: 0,
+  }
+}
 
 // (1) Cell creation transforms produce correct types
 test('createSourceCell produces source cell with identity output', () => {
@@ -126,3 +153,94 @@ test('computeStaleness: connected cell with mismatched lastInputHash is stale', 
 // (7) executeCascade integration is verified by the manual smoke test (Wave 10)
 // since the use case imports cross-layer files that node:test cannot resolve
 // without a TypeScript loader. Kernel transform behavior is fully covered above.
+
+// (8) validateConnection: cross-type allowance for legacy → cell + reverse rejection
+test('validateConnection: pdf → code cell is permitted', () => {
+  const pdfNode = makePdfNode('p1')
+  const codeCell = createCodeCell(pos)
+  const result = validateConnection([], [pdfNode], pdfNode.id, codeCell.id, [codeCell])
+  assert.equal(result.valid, true)
+})
+
+test('validateConnection: pdf → ai cell is permitted', () => {
+  const pdfNode = makePdfNode('p1')
+  const aiCell = createAiCell(pos)
+  const result = validateConnection([], [pdfNode], pdfNode.id, aiCell.id, [aiCell])
+  assert.equal(result.valid, true)
+})
+
+test('validateConnection: markdown → code cell is permitted', () => {
+  const mdNode = makeMarkdownNode('m1')
+  const codeCell = createCodeCell(pos)
+  const result = validateConnection([], [mdNode], mdNode.id, codeCell.id, [codeCell])
+  assert.equal(result.valid, true)
+})
+
+test('validateConnection: markdown → ai cell is permitted', () => {
+  const mdNode = makeMarkdownNode('m1')
+  const aiCell = createAiCell(pos)
+  const result = validateConnection([], [mdNode], mdNode.id, aiCell.id, [aiCell])
+  assert.equal(result.valid, true)
+})
+
+test('validateConnection: pdf → source cell is rejected (source cells cannot receive input)', () => {
+  const pdfNode = makePdfNode('p1')
+  const sourceCell = createSourceCell(pos, 'hi', 'src')
+  const result = validateConnection([], [pdfNode], pdfNode.id, sourceCell.id, [sourceCell])
+  assert.equal(result.valid, false)
+})
+
+test('validateConnection: code cell → pdf node is rejected (reverse direction blocked)', () => {
+  const pdfNode = makePdfNode('p1')
+  const codeCell = createCodeCell(pos)
+  const result = validateConnection([], [pdfNode], codeCell.id, pdfNode.id, [codeCell])
+  assert.equal(result.valid, false)
+  if (!result.valid) assert.match(result.reason, /Cells cannot feed into legacy nodes/)
+})
+
+test('validateConnection: chat node → code cell is rejected (only pdf|markdown sources allowed)', () => {
+  const chatNode = makeChatNode('c1')
+  const codeCell = createCodeCell(pos)
+  const result = validateConnection([], [chatNode], chatNode.id, codeCell.id, [codeCell])
+  assert.equal(result.valid, false)
+  if (!result.valid) assert.match(result.reason, /Only PDF and markdown nodes/)
+})
+
+test('validateConnection: ai-transform node → code cell is rejected', () => {
+  const aiTransform = makeAiTransformNode('a1')
+  const codeCell = createCodeCell(pos)
+  const result = validateConnection([], [aiTransform], aiTransform.id, codeCell.id, [codeCell])
+  assert.equal(result.valid, false)
+})
+
+test('validateConnection: pdf → chat node is rejected (legacy → legacy with content target unchanged)', () => {
+  const pdfNode = makePdfNode('p1')
+  const chatNode = makeChatNode('c1')
+  // No incoming yet → chat is a content node, only one incoming allowed; first connection is allowed
+  const result = validateConnection([], [pdfNode, chatNode], pdfNode.id, chatNode.id, [])
+  assert.equal(result.valid, true) // legacy→legacy, no cells in play
+})
+
+test('validateConnection: pdf → transform node still works (legacy unchanged)', () => {
+  const pdfNode = makePdfNode('p1')
+  const xform = makeTransformNode('t1')
+  const result = validateConnection([], [pdfNode, xform], pdfNode.id, xform.id, [])
+  assert.equal(result.valid, true)
+})
+
+test('validateConnection: cycle detection still works in cross-type graphs', () => {
+  // Construct: pdfNode → codeCell, then try codeCell → pdfNode (would create cycle and reverse-block)
+  // The reverse-block kicks in first, so this asserts the reverse-block reason takes precedence
+  const pdfNode = makePdfNode('p1')
+  const codeCell = createCodeCell(pos)
+  const conn: Connection = { id: 'c1', sourceId: pdfNode.id, targetId: codeCell.id, label: 'paper', createdAt: 0, gate: 'open' }
+  const result = validateConnection([conn], [pdfNode], codeCell.id, pdfNode.id, [codeCell])
+  assert.equal(result.valid, false)
+})
+
+test('validateConnection: self-connection still rejected for cells', () => {
+  const codeCell = createCodeCell(pos)
+  const result = validateConnection([], [], codeCell.id, codeCell.id, [codeCell])
+  assert.equal(result.valid, false)
+  if (!result.valid) assert.match(result.reason, /itself/)
+})

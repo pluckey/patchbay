@@ -20,24 +20,53 @@ const PDF_INTERFACE = `interface PdfInput {
   totalPages: number;
   /** PDF filename */
   filename: string;
+  /** User-authored annotation regions on this PDF */
+  annotations: Array<{
+    label: string;
+    page: number;
+    region: { x: number; y: number; width: number; height: number };
+    text: string;
+  }>;
+}`
+
+const DERIVED_INTERFACE = `interface DerivedInput {
+  /** Text output from an upstream cell or transform */
+  text: string;
+  /** Source node type */
+  type: "derived";
 }`
 
 const PDF_HELPERS_INTERFACE = `interface PdfHelpers {
   /** Pages from \`from\` to \`to\` (1-indexed, inclusive) as array of { page, text }. */
-  pageRange(input: PdfInput, from: number, to: number): Array<{ page: number; text: string }>;
+  pageRange(input: PdfInput | MarkdownInput | DerivedInput, from: number, to: number): Array<{ page: number; text: string }>;
   /** Pages surrounding currentPage within \`radius\` as array of { page, text }. */
-  surrounding(input: PdfInput, radius: number): Array<{ page: number; text: string }>;
+  surrounding(input: PdfInput | MarkdownInput | DerivedInput, radius: number): Array<{ page: number; text: string }>;
   /** All pages joined. */
-  allText(input: PdfInput): string;
+  allText(input: PdfInput | MarkdownInput | DerivedInput): string;
   /** All annotation texts as an array. */
-  annotationTexts(input: PdfInput): string[];
+  annotationTexts(input: PdfInput | MarkdownInput | DerivedInput): string[];
   /** Total page count. */
-  pageCount(input: PdfInput): number;
+  pageCount(input: PdfInput | MarkdownInput | DerivedInput): number;
   /** Text of the current page. */
-  currentPageText(input: PdfInput): string;
+  currentPageText(input: PdfInput | MarkdownInput | DerivedInput): string;
 }
 /** PDF helper functions — safe to call on any input (returns "" or [] for non-PDF). */
 declare const pdf: PdfHelpers;`
+
+const ALL_INTERFACES = `${MARKDOWN_INTERFACE}\n\n${PDF_INTERFACE}\n\n${DERIVED_INTERFACE}\n\n${PDF_HELPERS_INTERFACE}`
+
+function typeForSourceType(sourceType: string): string {
+  switch (sourceType) {
+    case "pdf":
+      return "PdfInput"
+    case "markdown":
+      return "MarkdownInput"
+    case "derived":
+      return "DerivedInput"
+    default:
+      return "MarkdownInput"
+  }
+}
 
 /**
  * Generates Monaco type definitions with concrete property names
@@ -45,13 +74,13 @@ declare const pdf: PdfHelpers;`
  */
 export function buildInputTypeDefs(legend: InputLegendEntry[]): string {
   if (legend.length === 0) {
-    return `${MARKDOWN_INTERFACE}\n${PDF_INTERFACE}\n${PDF_HELPERS_INTERFACE}\ndeclare const input: Record<string, MarkdownInput | PdfInput>;`
+    return `${ALL_INTERFACES}\ndeclare const input: Record<string, MarkdownInput | PdfInput | DerivedInput>;`
   }
 
   const props = legend.map((entry) => {
-    const type = entry.sourceType === "pdf" ? "PdfInput" : "MarkdownInput"
+    const type = typeForSourceType(entry.sourceType)
     return `  /** ${entry.sourceName} (${entry.sourceType}) */\n  ${entry.label}: ${type};`
   }).join("\n")
 
-  return `${MARKDOWN_INTERFACE}\n\n${PDF_INTERFACE}\n\n${PDF_HELPERS_INTERFACE}\n\ndeclare const input: {\n${props}\n};`
+  return `${ALL_INTERFACES}\n\ndeclare const input: {\n${props}\n};`
 }

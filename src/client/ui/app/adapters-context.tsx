@@ -8,11 +8,7 @@ import type { TransformExecutorPort } from "@/client/domain/ports/transform-exec
 import type { ChatPort } from "@/client/domain/ports/chat-port"
 import type { ModelRosterPort } from "@/client/domain/ports/model-roster-port"
 import type { AiExecutorPort } from "@/client/domain/ports/ai-executor-port"
-
-export type DeletionManifest = {
-  load: () => string[]
-  save: (ids: string[]) => void
-}
+import type { DeletionManifestPort } from "@/client/domain/ports/deletion-manifest-port"
 
 export type Adapters = {
   storage: StoragePort
@@ -22,7 +18,7 @@ export type Adapters = {
   chat: ChatPort
   modelRoster: ModelRosterPort
   aiExecutor: AiExecutorPort
-  deletionManifest: DeletionManifest
+  deletionManifest: DeletionManifestPort
 }
 
 const AdaptersContext = createContext<Adapters | null>(null)

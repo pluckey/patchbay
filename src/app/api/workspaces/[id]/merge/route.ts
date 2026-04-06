@@ -1,15 +1,13 @@
-import { migrateToMultiWorkspace } from "@/server/storage/migrate-to-multi-workspace"
-import { readManifest } from "@/server/storage/fs-manifest-store"
 import { readWorkspaceById, writeWorkspaceById, withWorkspaceLock } from "@/server/storage/fs-workspace-store"
 import { mergeWorkspace } from "@/server/storage/merge-workspace"
 
-export async function POST(request: Request) {
-  try {
-    await migrateToMultiWorkspace()
-    const manifest = await readManifest()
-    const activeId = manifest?.activeId
-    if (!activeId) return new Response("No active workspace", { status: 404 })
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params
 
+  try {
     const { nodes, connections } = await request.json()
     const incoming = { nodes: nodes ?? [], connections: connections ?? [] }
 
@@ -17,8 +15,10 @@ export async function POST(request: Request) {
     let addedConns = 0
 
     await withWorkspaceLock(async () => {
-      const raw = await readWorkspaceById(activeId)
-      const disk = raw ? JSON.parse(raw) : { version: 10, nodes: [], connections: [], viewport: { x: 0, y: 0, zoom: 1 } }
+      const raw = await readWorkspaceById(id)
+      const disk = raw
+        ? JSON.parse(raw)
+        : { version: 10, id, nodes: [], connections: [], viewport: { x: 0, y: 0, zoom: 1 } }
 
       const existingNodeIds = new Set(disk.nodes.map((n: { id: string }) => n.id))
       const existingConnIds = new Set(disk.connections.map((c: { id: string }) => c.id))
@@ -32,16 +32,16 @@ export async function POST(request: Request) {
 
       const merged = mergeWorkspace(
         { ...disk, nodes: [...disk.nodes, ...newNodes], connections: [...disk.connections, ...newConns] },
-        disk
+        disk,
       )
-      await writeWorkspaceById(activeId, JSON.stringify(merged))
+      await writeWorkspaceById(id, JSON.stringify(merged))
     })
 
     return Response.json({ added: { nodes: addedNodes, connections: addedConns } })
   } catch (e) {
     return new Response(
       `Merge failed: ${e instanceof Error ? e.message : String(e)}`,
-      { status: 500 }
+      { status: 500 },
     )
   }
 }

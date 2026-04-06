@@ -1,9 +1,10 @@
-import { readFile, writeFile, mkdir, rename } from "fs/promises"
+import { readFile, writeFile, mkdir, rename, unlink } from "fs/promises"
 import path from "path"
 
 const WORKSPACE_DIR = path.join(process.cwd(), ".context-canvas")
 const WORKSPACE_FILE = path.join(WORKSPACE_DIR, "workspace.json")
 const WORKSPACE_TMP = path.join(WORKSPACE_DIR, "workspace.json.tmp")
+const WORKSPACES_DIR = path.join(WORKSPACE_DIR, "workspaces")
 
 export async function readWorkspace(): Promise<string | null> {
   try {
@@ -32,5 +33,38 @@ export async function withWorkspaceLock<T>(fn: () => Promise<T>): Promise<T> {
     return await fn()
   } finally {
     resolve!()
+  }
+}
+
+function validateWorkspaceId(id: string): void {
+  if (!/^[a-zA-Z0-9_-]+$/.test(id)) {
+    throw new Error(`Invalid workspace ID: ${id}`)
+  }
+}
+
+export async function readWorkspaceById(id: string): Promise<string | null> {
+  validateWorkspaceId(id)
+  try {
+    return await readFile(path.join(WORKSPACES_DIR, `${id}.json`), "utf-8")
+  } catch {
+    return null
+  }
+}
+
+export async function writeWorkspaceById(id: string, json: string): Promise<void> {
+  validateWorkspaceId(id)
+  await mkdir(WORKSPACES_DIR, { recursive: true })
+  const filePath = path.join(WORKSPACES_DIR, `${id}.json`)
+  const tmpPath = path.join(WORKSPACES_DIR, `${id}.json.tmp`)
+  await writeFile(tmpPath, json, "utf-8")
+  await rename(tmpPath, filePath)
+}
+
+export async function deleteWorkspaceFile(id: string): Promise<void> {
+  validateWorkspaceId(id)
+  try {
+    await unlink(path.join(WORKSPACES_DIR, `${id}.json`))
+  } catch {
+    // Silently ignore file-not-found errors
   }
 }

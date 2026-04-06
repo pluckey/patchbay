@@ -1,10 +1,13 @@
+import { nanoid } from "nanoid"
 import type { Workspace, WorkspaceNode, Connection } from "@/kernel/entities"
 
 export const STORAGE_KEY = "context-canvas:workspace"
-export const CURRENT_VERSION = 9
+export const CURRENT_VERSION = 10
 
 export type StorageEnvelope = {
   version: number
+  id?: string
+  name?: string
   nodes: WorkspaceNode[]
   connections: Connection[]
   viewport: Workspace["viewport"]
@@ -108,6 +111,16 @@ export function migrate(envelope: StorageEnvelope): StorageEnvelope {
     })
     envelope.version = 9
   }
+  // v9 → v10: stamp workspace id and name
+  if (envelope.version < 10) {
+    if (!envelope.id) {
+      envelope.id = nanoid()
+    }
+    if (!envelope.name) {
+      envelope.name = "Workspace 1"
+    }
+    envelope.version = 10
+  }
   return envelope
 }
 
@@ -126,6 +139,8 @@ export function parseEnvelope(json: string): StorageEnvelope | null {
 
 export function toWorkspace(envelope: StorageEnvelope): Workspace {
   return {
+    id: envelope.id ?? nanoid(),
+    name: envelope.name ?? "Untitled",
     nodes: envelope.nodes,
     connections: envelope.connections ?? [],
     viewport: envelope.viewport ?? { x: 0, y: 0, zoom: 1 },
@@ -135,6 +150,8 @@ export function toWorkspace(envelope: StorageEnvelope): Workspace {
 export function toEnvelope(workspace: Workspace): StorageEnvelope {
   return {
     version: CURRENT_VERSION,
+    id: workspace.id,
+    name: workspace.name,
     nodes: workspace.nodes,
     connections: workspace.connections,
     viewport: workspace.viewport,

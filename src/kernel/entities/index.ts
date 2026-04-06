@@ -1,7 +1,7 @@
 export type { Position, Dimensions, MarkdownNodeData, PdfNodeData, TransformNodeData, ChatNodeData, AiTransformNodeData, WorkspaceNode } from "./workspace-node"
 export type { Message } from "./chat"
 export type { Viewport, Workspace } from "./workspace"
-export { DEFAULT_WORKSPACE } from "./workspace"
+export type { WorkspaceRef } from "./workspace-ref"
 export type { Connection, TransformResult } from "./connection"
 export type { PdfDocument, PdfOutlineItem } from "./pdf-types"
 export type { PdfRegion, PdfAnnotation, PdfTextItem } from "./pdf-annotation"

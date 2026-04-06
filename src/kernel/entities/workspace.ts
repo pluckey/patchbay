@@ -8,13 +8,9 @@ export type Viewport = {
 }
 
 export type Workspace = {
+  id: string
+  name: string
   nodes: WorkspaceNode[]
   connections: Connection[]
   viewport: Viewport
-}
-
-export const DEFAULT_WORKSPACE: Workspace = {
-  nodes: [],
-  connections: [],
-  viewport: { x: 0, y: 0, zoom: 1 },
 }

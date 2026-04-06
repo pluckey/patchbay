@@ -5,11 +5,11 @@ import type { WorkspaceNode, Connection, Viewport } from "@/kernel/entities"
 import { loadWorkspace } from "@/client/domain/use-cases/load-workspace"
 import { saveWorkspace } from "@/client/domain/use-cases/save-workspace"
 import type { StoragePort } from "@/client/domain/ports/storage-port"
-import type { DeletionManifest } from "@/client/ui/app/adapters-context"
+import type { DeletionManifestPort } from "@/client/domain/ports/deletion-manifest-port"
 
 type UseWorkspacePersistenceArgs = {
   storage: StoragePort
-  deletionManifest: DeletionManifest
+  deletionManifest: DeletionManifestPort
   getViewport: () => Viewport
 }
 
@@ -24,6 +24,8 @@ export function useWorkspacePersistence({ storage, deletionManifest, getViewport
   const getViewportRef = useRef(getViewport)
   const deletedIdsRef = useRef<string[]>([])
   const saveInFlightRef = useRef(false)
+  const workspaceIdRef = useRef("")
+  const workspaceNameRef = useRef("")
 
   nodesRef.current = nodes
   connectionsRef.current = connections
@@ -40,6 +42,8 @@ export function useWorkspacePersistence({ storage, deletionManifest, getViewport
   useEffect(() => {
     ;(async () => {
       const workspace = await loadWorkspace(storage)
+      workspaceIdRef.current = workspace.id
+      workspaceNameRef.current = workspace.name
       setNodes(workspace.nodes)
       setConnections(workspace.connections)
       setInitialViewport(workspace.viewport)
@@ -65,6 +69,8 @@ export function useWorkspacePersistence({ storage, deletionManifest, getViewport
       saveInFlightRef.current = true
       try {
         await saveWorkspace(storage, {
+          id: workspaceIdRef.current,
+          name: workspaceNameRef.current,
           nodes: updatedNodes,
           connections: updatedConnections ?? connectionsRef.current,
           viewport: getViewportRef.current(),
@@ -111,6 +117,8 @@ export function useWorkspacePersistence({ storage, deletionManifest, getViewport
         clearTimeout(saveTimeoutRef.current)
       }
       storage.save({
+        id: workspaceIdRef.current,
+        name: workspaceNameRef.current,
         nodes: nodesRef.current,
         connections: connectionsRef.current,
         viewport: getViewportRef.current(),

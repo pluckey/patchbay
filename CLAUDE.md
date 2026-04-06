@@ -27,12 +27,12 @@ src/
     ui/
       hooks/          ← React hooks bridging UI to domain use cases (via DI context)
       components/     ← React components (receive data + callbacks via props)
-      app/            ← AdaptersContext (DI provider)
+      app/            ← AdaptersContext + WorkspaceManagerContext (DI providers)
     lib/              ← Utilities (cn)
 
   server/             ← SERVER APPLICATION: Node.js-only utilities and adapters.
     config/           ← Provider roster and configuration (model-roster, provider dispatch config)
-    storage/          ← Filesystem persistence (.context-canvas/workspace.json, blobs/)
+    storage/          ← Filesystem persistence (.context-canvas/manifest.json, workspaces/, blobs/)
     adapters/         ← External service adapters (Anthropic API, OpenAI-compatible via Vercel AI SDK)
 
   app/                ← COMPOSITION ROOT: Next.js App Router pages + API routes. Wires adapters to context.
@@ -69,22 +69,36 @@ During an active drag, xyflow owns node position transiently (for 60fps). On `on
 ### Persistence Pattern
 
 - `StoragePort` interface in `client/domain/ports/`, adapters in `client/adapters/storage/`
-- Primary: `serverStorageAdapter` (PUT `/api/workspace`), fallback: `localStorageAdapter` (localStorage cache)
-- localStorage key: `"context-canvas:workspace"`, JSON with `version: 9` envelope
+- **Multi-workspace**: Each workspace is a separate scope with its own nodes, connections, and viewport
+- **Scoped adapter factory**: `createScopedServerStorageAdapter(workspaceId)` returns a `StoragePort` bound to a specific workspace. The `StoragePort` interface is unchanged — consumers don't know they're scoped
+- **Server layout**: `.context-canvas/manifest.json` (workspace registry) + `.context-canvas/workspaces/{id}.json` (per-workspace data). Legacy `workspace.json` preserved as backup after migration
+- **Manifest store**: `server/storage/fs-manifest-store.ts` — `readManifest()`, `writeManifest()`, `withManifestLock()`. Independent mutex from workspace lock
+- **Lazy migration**: `server/storage/migrate-to-multi-workspace.ts` — idempotent, triggered on first `GET /api/workspaces`. Migrates legacy single-file format to multi-workspace
+- **API routes**: `GET/POST/PATCH /api/workspaces` (collection + activeId), `GET/PUT/DELETE/PATCH /api/workspaces/[id]` (instance), `POST /api/workspaces/[id]/merge` (external writes). Legacy `/api/workspace` routes preserved as backward-compatible shims
+- localStorage cache key: `"context-canvas:workspace:{workspaceId}"`, JSON with `version: 10` envelope
 - 300ms trailing-edge debounce on save after any mutation
 - Synchronous `beforeunload` flush to prevent data loss on tab close
 - `load()` returns `null` on any failure (parse error, missing key) — never throws
 - **Merge-on-save**: PUT endpoint reads disk before writing, preserves nodes/connections absent from the incoming payload (unless in `deletedIds`). Merge logic in `server/storage/merge-workspace.ts`, serialized by in-process lock in `server/storage/fs-workspace-store.ts`
-- **External merge endpoint**: POST `/api/workspace/merge` adds nodes/connections by ID (idempotent). Used by CLI tools and agents to write to a live workspace
-- **Deletion manifest**: Client tracks deleted IDs, includes them in save payloads. Persisted to localStorage (`context-canvas:deletedIds`) via `client/adapters/storage/deletion-manifest.ts` for cross-session durability
-- **External node detection**: Client polls server every 2s, absorbs nodes/connections it doesn't have. Skips polling while a save is in-flight
+- **Deletion manifest**: Client tracks deleted IDs per workspace, includes them in save payloads. Scoped via `createScopedDeletionManifest(workspaceId)` in `client/adapters/storage/deletion-manifest.ts`
+- **External node detection**: Client polls server every 2s for the active workspace only, absorbs nodes/connections it doesn't have. Skips polling while a save is in-flight
+
+### Workspace Management Pattern
+
+- `WorkspaceRegistryPort` in `client/domain/ports/` — lifecycle operations (list, getActiveId, setActiveId, create, remove, rename)
+- `serverRegistryAdapter` in `client/adapters/storage/` implements the port, talks to `/api/workspaces` endpoints, caches `activeId` in localStorage for fast reload
+- Use cases: `deleteWorkspace` (with last-workspace guard) and `renameWorkspace` in `client/domain/use-cases/`. Switch and create are hook-level orchestrations in `useWorkspaceManager`
+- `useWorkspaceManager` hook in `client/ui/hooks/` — consumes registry port, exposes workspace CRUD + `registerFlush` for flush-before-switch
+- `WorkspaceManagerProvider` in `client/ui/app/` — sits above `AdaptersProvider`, holds `activeId` state, receives `createScopedAdapters` factory from composition root, keys `AdaptersProvider` on `activeId` for full subtree remount on switch
+- `WorkspaceSidepanel` in `client/ui/components/` — collapsible left panel, consumes `useWorkspaceManagerContext()`
 
 ### Dependency Injection Pattern
 
-- `AdaptersContext` in `client/ui/app/adapters-context.tsx` provides concrete adapters
-- `useAdapters()` hook returns `{ storage, blobStorage, pdfRenderer, transformExecutor, chat, modelRoster, aiExecutor }`
-- `src/app/page.tsx` creates the `AdaptersProvider` with concrete instances
-- Hooks and components consume via `useAdapters()` — never by direct import
+- `AdaptersContext` in `client/ui/app/adapters-context.tsx` provides per-workspace concrete adapters
+- `useAdapters()` hook returns `{ storage, blobStorage, pdfRenderer, transformExecutor, chat, modelRoster, aiExecutor, deletionManifest }`
+- `WorkspaceManagerContext` in `client/ui/app/workspace-manager-context.tsx` provides workspace lifecycle operations (above `AdaptersContext`)
+- `src/app/page.tsx` creates the `WorkspaceManagerProvider` with registry adapter, shared adapters, and scoped adapter factory. Concrete adapter creation happens only in the composition root
+- Hooks and components consume via `useAdapters()` or `useWorkspaceManagerContext()` — never by direct import
 
 ## Design System: Vercel Geist
 

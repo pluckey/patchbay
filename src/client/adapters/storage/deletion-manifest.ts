@@ -1,20 +1,24 @@
-const DELETED_IDS_KEY = "context-canvas:deletedIds"
+import type { DeletionManifestPort } from "@/client/domain/ports/deletion-manifest-port"
 
-export function loadManifest(): string[] {
-  try {
-    const raw = localStorage.getItem(DELETED_IDS_KEY)
-    return raw ? JSON.parse(raw) : []
-  } catch {
-    return []
+export function createScopedDeletionManifest(workspaceId: string): DeletionManifestPort {
+  const key = `context-canvas:deletedIds:${workspaceId}`
+  return {
+    load(): string[] {
+      try {
+        const raw = localStorage.getItem(key)
+        return raw ? JSON.parse(raw) : []
+      } catch {
+        return []
+      }
+    },
+    save(ids: string[]): void {
+      try {
+        if (ids.length > 0) {
+          localStorage.setItem(key, JSON.stringify(ids))
+        } else {
+          localStorage.removeItem(key)
+        }
+      } catch { /* ignore */ }
+    },
   }
-}
-
-export function saveManifest(ids: string[]): void {
-  try {
-    if (ids.length > 0) {
-      localStorage.setItem(DELETED_IDS_KEY, JSON.stringify(ids))
-    } else {
-      localStorage.removeItem(DELETED_IDS_KEY)
-    }
-  } catch { /* ignore */ }
 }

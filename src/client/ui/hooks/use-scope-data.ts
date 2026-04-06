@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import type { Cell, Connection, InputLegendEntry } from '@/kernel/entities'
+import type { Cell, Connection, InputLegendEntry, WorkspaceNode } from '@/kernel/entities'
 import { resolveCellInputs } from '@/kernel/transforms'
 
 export type ScopeInput = {
@@ -18,7 +18,9 @@ export type ScopeData = {
 export function useScopeData(
   cellId: string | null,
   cells: Cell[],
-  connections: Connection[]
+  connections: Connection[],
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _nodes: WorkspaceNode[],
 ): ScopeData {
   return useMemo(() => {
     if (cellId === null) {
@@ -37,17 +39,17 @@ export function useScopeData(
       const sourceCell = cellMap.get(connection.sourceId)
       if (!sourceCell) continue
 
-      const text = resolvedInputs[sourceCell.title]
-      if (text === undefined) continue
+      const resolved = resolvedInputs[connection.label]
+      if (resolved === undefined) continue
 
       inputs.push({
         cellId: sourceCell.id,
         title: sourceCell.title,
-        text,
+        text: resolved.text,
       })
 
       inputLegend.push({
-        label: sourceCell.title,
+        label: connection.label,
         sourceName: sourceCell.title,
         sourceType: sourceCell.type,
       })

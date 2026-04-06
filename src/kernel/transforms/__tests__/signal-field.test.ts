@@ -8,11 +8,14 @@ import { computeTerminalCells } from '../compute-terminal-cells.ts'
 import { computeMix } from '../compute-mix.ts'
 import { buildExecutionSchedule } from '../build-execution-schedule.ts'
 import { resolveCellInputs } from '../resolve-cell-inputs.ts'
+import { hashCellInputs } from '../hash-cell-inputs.ts'
 import { computeStaleness } from '../compute-staleness.ts'
 import { validateConnection } from '../validate-connection.ts'
+import { buildInputTypeDefs } from '../../../client/ui/components/transform-input-types.ts'
 import type { Cell } from '../../entities/cell.ts'
 import type { Connection } from '../../entities/connection.ts'
-import type { MarkdownNodeData, PdfNodeData, ChatNodeData, AiTransformNodeData, TransformNodeData, WorkspaceNode } from '../../entities/workspace-node.ts'
+import type { ResolvedInput, ResolvedPdfInput, ResolvedMarkdownInput } from '../../entities/resolved-input.ts'
+import type { MarkdownNodeData, PdfNodeData, ChatNodeData, AiTransformNodeData, TransformNodeData } from '../../entities/workspace-node.ts'
 
 const pos = { x: 0, y: 0 }
 
@@ -117,24 +120,69 @@ test('buildExecutionSchedule: latched connection blocks propagation', () => {
 })
 
 // (5) resolveCellInputs returns keyed inputs from connected cells
-test('resolveCellInputs: keys by source title', () => {
+test('resolveCellInputs: keys by connection label, wraps cell output as ResolvedDerivedInput', () => {
   const source = createSourceCell(pos, 'hello', 'My Source')
   const ai = createAiCell(pos)
   const conn: Connection = { id: 'c1', sourceId: source.id, targetId: ai.id, label: 'in', createdAt: 0, gate: 'open' }
   const inputs = resolveCellInputs(ai.id, [source, ai], [conn])
-  assert.equal(inputs['My Source'], 'hello')
+  assert.deepEqual(inputs['in'], { text: 'hello', type: 'derived' })
+})
+
+test('resolveCellInputs: legacy markdown node source produces ResolvedMarkdownInput via legacyOutputs', () => {
+  const mdNode = makeMarkdownNode('m1', '# notes')
+  const code = createCodeCell(pos)
+  const conn: Connection = { id: 'c1', sourceId: mdNode.id, targetId: code.id, label: 'notes', createdAt: 0, gate: 'open' }
+  const legacyOutputs = new Map<string, ResolvedInput>([
+    [mdNode.id, { text: '# notes', type: 'markdown' as const } satisfies ResolvedMarkdownInput],
+  ])
+  const inputs = resolveCellInputs(code.id, [code], [conn], [mdNode], undefined, legacyOutputs)
+  assert.deepEqual(inputs['notes'], { text: '# notes', type: 'markdown' })
+})
+
+test('resolveCellInputs: legacy pdf node source produces ResolvedPdfInput via legacyOutputs', () => {
+  const pdfNode = makePdfNode('p1', 'paper.pdf')
+  const code = createCodeCell(pos)
+  const conn: Connection = { id: 'c1', sourceId: pdfNode.id, targetId: code.id, label: 'paper', createdAt: 0, gate: 'open' }
+  const pdfInput: ResolvedPdfInput = {
+    text: 'page 1 text',
+    pages: ['page 1 text', 'page 2 text'],
+    type: 'pdf',
+    currentPage: 1,
+    totalPages: 2,
+    filename: 'paper.pdf',
+    annotations: [],
+  }
+  const legacyOutputs = new Map<string, ResolvedInput>([[pdfNode.id, pdfInput]])
+  const inputs = resolveCellInputs(code.id, [code], [conn], [pdfNode], undefined, legacyOutputs)
+  assert.deepEqual(inputs['paper'], pdfInput)
+})
+
+test('resolveCellInputs: missing source is silently skipped', () => {
+  const code = createCodeCell(pos)
+  const conn: Connection = { id: 'c1', sourceId: 'nonexistent', targetId: code.id, label: 'ghost', createdAt: 0, gate: 'open' }
+  const inputs = resolveCellInputs(code.id, [code], [conn])
+  assert.deepEqual(inputs, {})
+})
+
+test('resolveCellInputs: legacy node source without legacyOutputs entry is skipped', () => {
+  const pdfNode = makePdfNode('p1')
+  const code = createCodeCell(pos)
+  const conn: Connection = { id: 'c1', sourceId: pdfNode.id, targetId: code.id, label: 'paper', createdAt: 0, gate: 'open' }
+  // No legacyOutputs map provided — legacy source is skipped
+  const inputs = resolveCellInputs(code.id, [code], [conn], [pdfNode])
+  assert.deepEqual(inputs, {})
 })
 
 // (6) computeStaleness propagates downstream
 test('computeStaleness: cell with no output is stale', () => {
   const ai = createAiCell(pos)
-  const map = computeStaleness([ai], [])
+  const map = computeStaleness([ai], [], [])
   assert.equal(map.get(ai.id), 'stale')
 })
 
 test('computeStaleness: source with output is current', () => {
   const source = createSourceCell(pos, 'hello', 'src')
-  const map = computeStaleness([source], [])
+  const map = computeStaleness([source], [], [])
   assert.equal(map.get(source.id), 'current')
 })
 
@@ -146,8 +194,109 @@ test('computeStaleness: connected cell with mismatched lastInputHash is stale', 
     lastInputHash: 'stale-hash',
   }
   const conn: Connection = { id: 'c1', sourceId: source.id, targetId: ai.id, label: 'in', createdAt: 0, gate: 'open' }
-  const map = computeStaleness([source, ai], [conn])
+  const map = computeStaleness([source, ai], [conn], [])
   assert.equal(map.get(ai.id), 'stale')
+})
+
+test('computeStaleness: connected cell whose hash matches lastInputHash is current', () => {
+  const source = createSourceCell(pos, 'hello', 'src')
+  const ai = createAiCell(pos)
+  const conn: Connection = { id: 'c1', sourceId: source.id, targetId: ai.id, label: 'in', createdAt: 0, gate: 'open' }
+  const expectedHash = hashCellInputs(ai.id, [source, ai], [conn], [])
+  const aiWithHash: Cell = {
+    ...ai,
+    output: { status: 'success', text: 'response', durationMs: 100 },
+    lastInputHash: expectedHash,
+  }
+  const map = computeStaleness([source, aiWithHash], [conn], [])
+  assert.equal(map.get(aiWithHash.id), 'current')
+})
+
+test('computeStaleness: cell downstream of legacy PdfNode is stale until hash recorded', () => {
+  const pdfNode = makePdfNode('p1', 'paper.pdf')
+  const code = createCodeCell(pos)
+  const codeWithOutput: Cell = {
+    ...code,
+    output: { status: 'success', text: 'extracted', durationMs: 100 },
+    lastInputHash: 'wrong-hash',
+  }
+  const conn: Connection = { id: 'c1', sourceId: pdfNode.id, targetId: code.id, label: 'paper', createdAt: 0, gate: 'open' }
+  const map = computeStaleness([codeWithOutput], [conn], [pdfNode])
+  assert.equal(map.get(codeWithOutput.id), 'stale')
+})
+
+// (8b) hashCellInputs: deterministic, sensitive to source state
+test('hashCellInputs: deterministic across connection insertion order', () => {
+  const a = createSourceCell(pos, 'A', 'a')
+  const b = createSourceCell(pos, 'B', 'b')
+  const target = createCodeCell(pos)
+  const c1: Connection = { id: 'c1', sourceId: a.id, targetId: target.id, label: 'aaa', createdAt: 0, gate: 'open' }
+  const c2: Connection = { id: 'c2', sourceId: b.id, targetId: target.id, label: 'bbb', createdAt: 0, gate: 'open' }
+  const h1 = hashCellInputs(target.id, [a, b, target], [c1, c2], [])
+  const h2 = hashCellInputs(target.id, [a, b, target], [c2, c1], [])
+  assert.equal(h1, h2)
+})
+
+test('hashCellInputs: changes when PdfNode currentPage changes', () => {
+  const pdf1 = makePdfNode('p1', 'paper.pdf')
+  const pdf2: PdfNodeData = { ...pdf1, currentPage: 5 }
+  const target = createCodeCell(pos)
+  const conn: Connection = { id: 'c1', sourceId: pdf1.id, targetId: target.id, label: 'paper', createdAt: 0, gate: 'open' }
+  const h1 = hashCellInputs(target.id, [target], [conn], [pdf1])
+  const h2 = hashCellInputs(target.id, [target], [conn], [pdf2])
+  assert.notEqual(h1, h2)
+})
+
+test('hashCellInputs: changes when PdfNode annotations change', () => {
+  const pdf1 = makePdfNode('p1', 'paper.pdf')
+  const pdf2: PdfNodeData = {
+    ...pdf1,
+    annotations: [{ id: 'a1', page: 1, region: { x: 0, y: 0, width: 10, height: 10 }, label: 'note', text: 'hello' }],
+  }
+  const target = createCodeCell(pos)
+  const conn: Connection = { id: 'c1', sourceId: pdf1.id, targetId: target.id, label: 'paper', createdAt: 0, gate: 'open' }
+  const h1 = hashCellInputs(target.id, [target], [conn], [pdf1])
+  const h2 = hashCellInputs(target.id, [target], [conn], [pdf2])
+  assert.notEqual(h1, h2)
+})
+
+test('hashCellInputs: changes when MarkdownNode content changes', () => {
+  const md1 = makeMarkdownNode('m1', 'old')
+  const md2 = makeMarkdownNode('m1', 'new')
+  const target = createCodeCell(pos)
+  const conn: Connection = { id: 'c1', sourceId: md1.id, targetId: target.id, label: 'notes', createdAt: 0, gate: 'open' }
+  const h1 = hashCellInputs(target.id, [target], [conn], [md1])
+  const h2 = hashCellInputs(target.id, [target], [conn], [md2])
+  assert.notEqual(h1, h2)
+})
+
+// (8c) buildInputTypeDefs: derived sourceType produces DerivedInput
+test('buildInputTypeDefs: derived sourceType produces DerivedInput in declared input', () => {
+  const lib = buildInputTypeDefs([
+    { label: 'upstream', sourceName: 'My Code', sourceType: 'derived' },
+  ])
+  assert.match(lib, /upstream: DerivedInput/)
+  assert.match(lib, /interface DerivedInput/)
+})
+
+test('buildInputTypeDefs: pdf sourceType produces PdfInput with annotations field', () => {
+  const lib = buildInputTypeDefs([
+    { label: 'paper', sourceName: 'paper.pdf', sourceType: 'pdf' },
+  ])
+  assert.match(lib, /paper: PdfInput/)
+  assert.match(lib, /annotations: Array</)
+})
+
+test('buildInputTypeDefs: markdown sourceType produces MarkdownInput', () => {
+  const lib = buildInputTypeDefs([
+    { label: 'notes', sourceName: 'notes', sourceType: 'markdown' },
+  ])
+  assert.match(lib, /notes: MarkdownInput/)
+})
+
+test('buildInputTypeDefs: empty legend produces fallback Record signature', () => {
+  const lib = buildInputTypeDefs([])
+  assert.match(lib, /declare const input: Record<string,/)
 })
 
 // (7) executeCascade integration is verified by the manual smoke test (Wave 10)

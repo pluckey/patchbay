@@ -1,37 +1,7 @@
-import type { Cell, Connection } from "../entities"
+import type { Cell, Connection, WorkspaceNode } from "../entities"
+import { hashCellInputs } from "./hash-cell-inputs.ts"
 
 export type StalenessStatus = 'current' | 'stale' | 'error'
-
-/**
- * Computes a deterministic hash of resolved inputs by JSON-stringifying
- * sorted key-value pairs.
- */
-function hashInputs(inputs: Record<string, string>): string {
-  const sorted = Object.keys(inputs)
-    .sort()
-    .map((key) => [key, inputs[key]] as [string, string])
-  return JSON.stringify(sorted)
-}
-
-/**
- * Resolves the inputs for a cell inline by finding each upstream cell's
- * output text, keyed by the source cell's title.
- */
-function resolveInputsInline(
-  cellId: string,
-  cellMap: Map<string, Cell>,
-  incomingConnections: Connection[]
-): Record<string, string> {
-  const inputs: Record<string, string> = {}
-  for (const conn of incomingConnections) {
-    const sourceCell = cellMap.get(conn.sourceId)
-    if (!sourceCell) continue
-    const output = sourceCell.output
-    const text = output && output.status === 'success' ? output.text : ''
-    inputs[sourceCell.title] = text
-  }
-  return inputs
-}
 
 /**
  * Computes staleness status for each cell.
@@ -41,13 +11,20 @@ function resolveInputsInline(
  * - 'stale'   : no output, or inputs hash differs from lastInputHash, or upstream is stale/error
  * - 'current' : source cell (no incoming connections) with output present, or
  *               connected cell whose inputs hash matches lastInputHash and all upstream is current
+ *
+ * The inputs hash is computed by the shared `hashCellInputs` transform, which
+ * also runs in the cascade orchestrator. Both must use the same hash function
+ * or staleness drifts and cells appear permanently stale.
+ *
+ * `nodes` is needed because cell inputs may now come from legacy WorkspaceNodes
+ * (PdfNode, MarkdownNode) via cross-type connections — the hash includes their
+ * source state.
  */
 export function computeStaleness(
   cells: Cell[],
-  connections: Connection[]
+  connections: Connection[],
+  nodes: WorkspaceNode[] = [],
 ): Map<string, StalenessStatus> {
-  const cellMap = new Map<string, Cell>(cells.map((c) => [c.id, c]))
-
   // Build map: cellId → incoming connections
   const incomingMap = new Map<string, Connection[]>()
   for (const cell of cells) {
@@ -94,9 +71,8 @@ export function computeStaleness(
       continue
     }
 
-    // Connected cell: resolve inputs and compare hash
-    const inputs = resolveInputsInline(cell.id, cellMap, incoming)
-    const hash = hashInputs(inputs)
+    // Connected cell: hash inputs and compare to lastInputHash
+    const hash = hashCellInputs(cell.id, cells, connections, nodes)
 
     if (cell.lastInputHash === undefined || cell.lastInputHash !== hash) {
       result.set(cell.id, 'stale')

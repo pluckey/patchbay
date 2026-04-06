@@ -26,7 +26,7 @@ export function useCascade({
   nodesRef,
   scheduleSave,
 }: UseCascadeParams): UseCascadeResult {
-  const { aiExecutor, transformExecutor } = useAdapters()
+  const { aiExecutor, transformExecutor, blobStorage, pdfRenderer } = useAdapters()
 
   const triggerCell = useCallback(
     async (cellId: string) => {
@@ -34,13 +34,14 @@ export function useCascade({
         cellId,
         cellsRef.current,
         connections,
-        { aiExecutor, transformExecutor },
+        nodesRef.current,
+        { aiExecutor, transformExecutor, blobStorage, pdfRenderer },
       )
       setCells(updatedCells)
       // CRITICAL: always pass nodesRef.current — never an empty array
       scheduleSave(nodesRef.current, undefined, updatedCells)
     },
-    [cellsRef, connections, aiExecutor, transformExecutor, setCells, nodesRef, scheduleSave],
+    [cellsRef, connections, aiExecutor, transformExecutor, blobStorage, pdfRenderer, setCells, nodesRef, scheduleSave],
   )
 
   return { triggerCell }

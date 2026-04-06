@@ -177,9 +177,9 @@ export function useWorkspaceViewModel(): WorkspaceViewModel {
   })
 
   const mixEntries = useMix(cells, connections)
-  const healthMap = useHealth(cells, connections)
+  const healthMap = useHealth(cells, connections, nodes)
   const { scopeCellId, openScope, closeScope } = useScopeState()
-  const { inputs: scopeInputs, inputLegend: scopeInputLegend } = useScopeData(scopeCellId, cells, connections)
+  const { inputs: scopeInputs, inputLegend: scopeInputLegend } = useScopeData(scopeCellId, cells, connections, nodes)
 
   const cellCardCallbacks = useMemo<CellCardCallbacks>(() => ({
     onOpenScope: (cellId) => openScope(cellId),

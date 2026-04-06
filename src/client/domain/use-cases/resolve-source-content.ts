@@ -7,6 +7,17 @@ export type ResolveSourceDeps = {
   pdfRenderer: PdfRendererPort
 }
 
+// Module-level cache of extracted PDF page text, keyed by blobId.
+// Page text is immutable for the lifetime of a blobId — replacing the PDF
+// produces a new blobId — so a cached pages array is always valid for its
+// key. This avoids re-fetching the blob (100+ MB transfer) and re-extracting
+// every page (1460 sequential getPageText calls for the Precalculus PDF) on
+// every cascade trigger.
+//
+// First trigger pays the full cost (~5 s for a 1460-page PDF). Every
+// subsequent trigger that resolves the same source completes in microseconds.
+const pageTextCache = new Map<string, Promise<string[]>>()
+
 /**
  * Resolves a single legacy WorkspaceNode into its ResolvedInput shape.
  *
@@ -36,38 +47,34 @@ export async function resolveSourceContent(
   }
 
   if (sourceNode.type === "pdf") {
-    let blob: Blob | null
+    let pagesPromise = pageTextCache.get(sourceNode.blobId)
+    if (!pagesPromise) {
+      pagesPromise = extractPdfPages(sourceNode.blobId, deps)
+      pageTextCache.set(sourceNode.blobId, pagesPromise)
+      // If extraction fails, drop the cache entry so a future call can retry.
+      pagesPromise.catch(() => pageTextCache.delete(sourceNode.blobId))
+    }
+
+    let pages: string[]
     try {
-      blob = await deps.blobStorage.retrieve(sourceNode.blobId)
+      pages = await pagesPromise
     } catch {
       return { text: "", type: "derived" as const }
     }
-    if (!blob) {
-      return { text: "", type: "derived" as const }
-    }
 
-    const doc = await deps.pdfRenderer.loadDocument(blob)
-    try {
-      const pages: string[] = []
-      for (let i = 1; i <= doc.numPages; i++) {
-        pages.push(await deps.pdfRenderer.getPageText(doc, i))
-      }
-      return {
-        text: pages[sourceNode.currentPage - 1] ?? "",
-        pages,
-        type: "pdf" as const,
-        currentPage: sourceNode.currentPage,
-        totalPages: sourceNode.totalPages,
-        filename: sourceNode.filename,
-        annotations: sourceNode.annotations.map((a) => ({
-          label: a.label,
-          page: a.page,
-          region: a.region,
-          text: a.text,
-        })),
-      }
-    } finally {
-      await doc.destroy()
+    return {
+      text: pages[sourceNode.currentPage - 1] ?? "",
+      pages,
+      type: "pdf" as const,
+      currentPage: sourceNode.currentPage,
+      totalPages: sourceNode.totalPages,
+      filename: sourceNode.filename,
+      annotations: sourceNode.annotations.map((a) => ({
+        label: a.label,
+        page: a.page,
+        region: a.region,
+        text: a.text,
+      })),
     }
   }
 
@@ -79,4 +86,26 @@ export async function resolveSourceContent(
   }
 
   return { text: "", type: "derived" as const }
+}
+
+/**
+ * Fetches a PDF blob and extracts text from every page sequentially.
+ *
+ * Cached at the call site keyed by blobId so this only runs once per
+ * blob lifetime, regardless of how many cascade triggers consume the
+ * resolved input.
+ */
+async function extractPdfPages(blobId: string, deps: ResolveSourceDeps): Promise<string[]> {
+  const blob = await deps.blobStorage.retrieve(blobId)
+  if (!blob) throw new Error(`blob ${blobId} not found`)
+  const doc = await deps.pdfRenderer.loadDocument(blob)
+  try {
+    const pages: string[] = []
+    for (let i = 1; i <= doc.numPages; i++) {
+      pages.push(await deps.pdfRenderer.getPageText(doc, i))
+    }
+    return pages
+  } finally {
+    await doc.destroy()
+  }
 }

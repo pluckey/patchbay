@@ -27,7 +27,7 @@ export function useCascade({
   nodesRef,
   scheduleSave,
 }: UseCascadeParams): UseCascadeResult {
-  const { aiExecutor, transformExecutor, blobStorage, pdfRenderer } = useAdapters()
+  const { aiExecutor, cellExecutor, blobStorage } = useAdapters()
 
   const triggerCell = useCallback(
     async (cellId: string) => {
@@ -36,7 +36,7 @@ export function useCascade({
         cellsRef.current,
         connections,
         nodesRef.current,
-        { aiExecutor, transformExecutor, blobStorage, pdfRenderer },
+        { aiExecutor, cellExecutor, blobStorage },
         // Stream cell outputs as each schedule step completes — a fast Code
         // cell's result appears immediately rather than waiting for a slow
         // downstream AI cell. flushSync forces React to commit the partial
@@ -53,7 +53,7 @@ export function useCascade({
       // CRITICAL: always pass nodesRef.current — never an empty array
       scheduleSave(nodesRef.current, undefined, updatedCells)
     },
-    [cellsRef, connections, aiExecutor, transformExecutor, blobStorage, pdfRenderer, setCells, nodesRef, scheduleSave],
+    [cellsRef, connections, aiExecutor, cellExecutor, blobStorage, setCells, nodesRef, scheduleSave],
   )
 
   return { triggerCell }

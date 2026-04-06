@@ -1,86 +1,76 @@
 import type { InputLegendEntry } from "@/kernel/entities"
-
-const MARKDOWN_INTERFACE = `interface MarkdownInput {
-  /** The markdown content of the source node */
-  text: string;
-  /** Source node type */
-  type: "markdown";
-}`
-
-const PDF_INTERFACE = `interface PdfInput {
-  /** Text content of the currently viewed page */
-  text: string;
-  /** All page texts, 0-indexed — pages[0] is page 1 */
-  pages: string[];
-  /** Source node type */
-  type: "pdf";
-  /** Currently viewed page number (1-based) */
-  currentPage: number;
-  /** Total number of pages */
-  totalPages: number;
-  /** PDF filename */
-  filename: string;
-  /** User-authored annotation regions on this PDF */
-  annotations: Array<{
-    label: string;
-    page: number;
-    region: { x: number; y: number; width: number; height: number };
-    text: string;
-  }>;
-}`
-
-const DERIVED_INTERFACE = `interface DerivedInput {
-  /** Text output from an upstream cell or transform */
-  text: string;
-  /** Source node type */
-  type: "derived";
-}`
-
-const PDF_HELPERS_INTERFACE = `interface PdfHelpers {
-  /** Pages from \`from\` to \`to\` (1-indexed, inclusive) as array of { page, text }. */
-  pageRange(input: PdfInput | MarkdownInput | DerivedInput, from: number, to: number): Array<{ page: number; text: string }>;
-  /** Pages surrounding currentPage within \`radius\` as array of { page, text }. */
-  surrounding(input: PdfInput | MarkdownInput | DerivedInput, radius: number): Array<{ page: number; text: string }>;
-  /** All pages joined. */
-  allText(input: PdfInput | MarkdownInput | DerivedInput): string;
-  /** All annotation texts as an array. */
-  annotationTexts(input: PdfInput | MarkdownInput | DerivedInput): string[];
-  /** Total page count. */
-  pageCount(input: PdfInput | MarkdownInput | DerivedInput): number;
-  /** Text of the current page. */
-  currentPageText(input: PdfInput | MarkdownInput | DerivedInput): string;
-}
-/** PDF helper functions — safe to call on any input (returns "" or [] for non-PDF). */
-declare const pdf: PdfHelpers;`
-
-const ALL_INTERFACES = `${MARKDOWN_INTERFACE}\n\n${PDF_INTERFACE}\n\n${DERIVED_INTERFACE}\n\n${PDF_HELPERS_INTERFACE}`
-
-function typeForSourceType(sourceType: string): string {
-  switch (sourceType) {
-    case "pdf":
-      return "PdfInput"
-    case "markdown":
-      return "MarkdownInput"
-    case "derived":
-      return "DerivedInput"
-    default:
-      return "MarkdownInput"
-  }
-}
+import { sourceKindRegistry } from "@/kernel/source-kinds"
+// Side-effect import: ensures every source kind is registered before
+// buildInputTypeDefs runs.
+import "@/client/source-kinds"
 
 /**
- * Generates Monaco type definitions with concrete property names
- * based on the actual connection labels.
+ * Generates Monaco type definitions for a cell editor by composing
+ * `typeDefFragment` strings from every source kind contribution that
+ * the cell's incoming connections actually use.
+ *
+ * The generator contains ZERO source-kind-specific code: no hardcoded
+ * MarkdownInput, PdfInput, helper namespace, or any per-kind branch.
+ * It iterates the legend, looks up each entry's contribution by kind,
+ * concatenates the fragments, and emits one `declare const <bindingName>`
+ * line per entry using the contribution's `bindingTypeExpression`.
+ *
+ * Adding a new source kind never requires editing this file.
+ *
+ * Note on legacy `derived` entries: signal-field cell-to-cell connections
+ * use a synthetic `derived` source-type tag that is NOT a registered kind
+ * (it's just a marker for "the upstream is another cell whose output is
+ * a string"). The generator handles this by typing the binding as
+ * `unknown` (the cell author can still reference it; they just don't get
+ * type hints for it). When/if cell-to-cell becomes a first-class kind,
+ * it'll get its own contribution and lose the special case.
  */
 export function buildInputTypeDefs(legend: InputLegendEntry[]): string {
-  if (legend.length === 0) {
-    return `${ALL_INTERFACES}\ndeclare const input: Record<string, MarkdownInput | PdfInput | DerivedInput>;`
+  // Collect the unique source kinds present in the legend (so we don't
+  // emit the same typeDefFragment twice if a cell has two inputs of the
+  // same kind).
+  const seenKinds = new Set<string>()
+  const fragments: string[] = []
+  const declarations: string[] = []
+
+  for (const entry of legend) {
+    let contribution
+    try {
+      contribution = sourceKindRegistry.get(entry.sourceType)
+    } catch {
+      // Unknown kind in the legend (e.g., a `derived` placeholder for
+      // cell-to-cell connections that have no contribution). Bind it as
+      // unknown so the variable still exists in the editor's scope.
+      declarations.push(
+        `  /** ${entry.sourceName} (${entry.sourceType}) */\n  ${entry.label}: unknown;`,
+      )
+      continue
+    }
+
+    if (!seenKinds.has(contribution.kind)) {
+      seenKinds.add(contribution.kind)
+      if (contribution.typeDefFragment) {
+        fragments.push(contribution.typeDefFragment)
+      }
+    }
+
+    const typeExpr = contribution.bindingTypeExpression ?? "unknown"
+    declarations.push(
+      `  /** ${entry.sourceName} (${contribution.kind}) */\n  ${entry.label}: ${typeExpr};`,
+    )
   }
 
-  const props = legend.map((entry) => {
-    const type = typeForSourceType(entry.sourceType)
-    return `  /** ${entry.sourceName} (${entry.sourceType}) */\n  ${entry.label}: ${type};`
-  }).join("\n")
+  if (legend.length === 0) {
+    // No incoming connections — emit every kind's typeDefFragment so the
+    // author still gets type info if they manually reference a known
+    // shape, but the input bindings are an empty record.
+    const allFragments = sourceKindRegistry
+      .list()
+      .map((c) => c.typeDefFragment)
+      .filter(Boolean)
+      .join("\n\n")
+    return `${allFragments}\n\ndeclare const input: Record<string, unknown>;`
+  }
 
-  return `${ALL_INTERFACES}\n\ndeclare const input: {\n${props}\n};`
+  return `${fragments.join("\n\n")}\n\ndeclare const input: {\n${declarations.join("\n")}\n};`
 }

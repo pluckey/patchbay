@@ -89,22 +89,25 @@ export async function resolveSourceContent(
 }
 
 /**
- * Fetches a PDF blob and extracts text from every page sequentially.
+ * Fetches a PDF blob and extracts text from every page in parallel.
  *
  * Cached at the call site keyed by blobId so this only runs once per
  * blob lifetime, regardless of how many cascade triggers consume the
  * resolved input.
+ *
+ * Parallelism: pdf.js exposes a single worker per document but the worker's
+ * message queue handles concurrent getTextContent calls without per-call
+ * round-trip latency. Issuing all page requests up-front lets the worker
+ * stream results back as fast as it can produce them, instead of waiting
+ * for each individual await to schedule the next request.
  */
 async function extractPdfPages(blobId: string, deps: ResolveSourceDeps): Promise<string[]> {
   const blob = await deps.blobStorage.retrieve(blobId)
   if (!blob) throw new Error(`blob ${blobId} not found`)
   const doc = await deps.pdfRenderer.loadDocument(blob)
   try {
-    const pages: string[] = []
-    for (let i = 1; i <= doc.numPages; i++) {
-      pages.push(await deps.pdfRenderer.getPageText(doc, i))
-    }
-    return pages
+    const pageNumbers = Array.from({ length: doc.numPages }, (_, i) => i + 1)
+    return await Promise.all(pageNumbers.map((n) => deps.pdfRenderer.getPageText(doc, n)))
   } finally {
     await doc.destroy()
   }

@@ -9,6 +9,7 @@ import { serverRegistryAdapter } from "@/client/adapters/storage/server-registry
 import { serverBlobAdapter } from "@/client/adapters/storage/server-blob-adapter"
 import { pdfRenderer } from "@/client/adapters/pdf/pdf-renderer"
 import { jsEvaluator } from "@/client/adapters/execution/js-evaluator"
+import { cellEvaluator } from "@/client/adapters/execution/cell-evaluator"
 import { chatAdapter } from "@/client/adapters/chat/chat-adapter"
 import { modelRosterAdapter } from "@/client/adapters/model-roster/model-roster-adapter"
 import { aiExecutorAdapter } from "@/client/adapters/ai-executor/ai-executor-adapter"
@@ -25,6 +26,7 @@ export default function Home() {
     blobStorage: serverBlobAdapter,
     pdfRenderer,
     transformExecutor: jsEvaluator,
+    cellExecutor: cellEvaluator,
     chat: chatAdapter,
     modelRoster: modelRosterAdapter,
     aiExecutor: aiExecutorAdapter,

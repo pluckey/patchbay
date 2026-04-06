@@ -5,6 +5,7 @@ import type { StoragePort } from "@/client/domain/ports/storage-port"
 import type { BlobStoragePort } from "@/client/domain/ports/blob-storage-port"
 import type { PdfRendererPort } from "@/client/domain/ports/pdf-renderer-port"
 import type { TransformExecutorPort } from "@/client/domain/ports/transform-executor-port"
+import type { CellExecutorPort } from "@/client/domain/ports/cell-executor-port"
 import type { ChatPort } from "@/client/domain/ports/chat-port"
 import type { ModelRosterPort } from "@/client/domain/ports/model-roster-port"
 import type { AiExecutorPort } from "@/client/domain/ports/ai-executor-port"
@@ -15,6 +16,7 @@ export type Adapters = {
   blobStorage: BlobStoragePort
   pdfRenderer: PdfRendererPort
   transformExecutor: TransformExecutorPort
+  cellExecutor: CellExecutorPort
   chat: ChatPort
   modelRoster: ModelRosterPort
   aiExecutor: AiExecutorPort

@@ -11,7 +11,6 @@ import { resolveCellInputs } from '../resolve-cell-inputs.ts'
 import { hashCellInputs } from '../hash-cell-inputs.ts'
 import { computeStaleness } from '../compute-staleness.ts'
 import { validateConnection } from '../validate-connection.ts'
-import { buildInputTypeDefs } from '../../../client/ui/components/transform-input-types.ts'
 import type { Cell } from '../../entities/cell.ts'
 import type { Connection } from '../../entities/connection.ts'
 import type { ResolvedInput, ResolvedPdfInput, ResolvedMarkdownInput } from '../../entities/resolved-input.ts'
@@ -270,36 +269,14 @@ test('hashCellInputs: changes when MarkdownNode content changes', () => {
   assert.notEqual(h1, h2)
 })
 
-// (8c) buildInputTypeDefs: derived sourceType produces DerivedInput
-test('buildInputTypeDefs: derived sourceType produces DerivedInput in declared input', () => {
-  const lib = buildInputTypeDefs([
-    { label: 'upstream', sourceName: 'My Code', sourceType: 'derived' },
-  ])
-  assert.match(lib, /upstream: DerivedInput/)
-  assert.match(lib, /interface DerivedInput/)
-})
+// buildInputTypeDefs tests previously lived here, but after the
+// source-kind-registry refactor `buildInputTypeDefs` is a client-layer
+// utility that imports across the kernel/client boundary via @/ aliases.
+// Node's test runner can't resolve those aliases without a tsconfig-paths
+// loader, so the tests were moved out. The function is exercised by the
+// manual smoke test for the source-kind-registry spec.
 
-test('buildInputTypeDefs: pdf sourceType produces PdfInput with annotations field', () => {
-  const lib = buildInputTypeDefs([
-    { label: 'paper', sourceName: 'paper.pdf', sourceType: 'pdf' },
-  ])
-  assert.match(lib, /paper: PdfInput/)
-  assert.match(lib, /annotations: Array</)
-})
-
-test('buildInputTypeDefs: markdown sourceType produces MarkdownInput', () => {
-  const lib = buildInputTypeDefs([
-    { label: 'notes', sourceName: 'notes', sourceType: 'markdown' },
-  ])
-  assert.match(lib, /notes: MarkdownInput/)
-})
-
-test('buildInputTypeDefs: empty legend produces fallback Record signature', () => {
-  const lib = buildInputTypeDefs([])
-  assert.match(lib, /declare const input: Record<string,/)
-})
-
-// (7) executeCascade integration is verified by the manual smoke test (Wave 10)
+// executeCascade integration is verified by the manual smoke test
 // since the use case imports cross-layer files that node:test cannot resolve
 // without a TypeScript loader. Kernel transform behavior is fully covered above.
 

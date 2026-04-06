@@ -53,7 +53,7 @@ A Signal cell holds user-provided content: text, a document, structured data, an
 ### ac-synthesizer-as-effect: Synthesizer cells transform inputs through a composable pipeline
 > **Center:** A Synthesizer's identity emerges from two sources of composition — what is connected to it (canvas) and how it processes those connections (pipeline) — rather than from a type declaration.
 
-A Synthesizer cell receives inputs from connected upstream cells and processes them through a user-composed internal pipeline. The pipeline consists of any number of stages arranged in any order, drawn from three effect types: Chat (prompt-response), Code (deterministic transform), and AI (schema-constrained generation). A single-stage pipeline is valid. An empty pipeline passes inputs through unchanged.
+A Synthesizer cell receives inputs from connected upstream cells and processes them through a user-composed internal pipeline. The pipeline consists of any number of stages arranged in any order, drawn from three effect types: Prompt (single prompt-response), Code (deterministic transform), and AI (schema-constrained generation). A single-stage pipeline is valid. An empty pipeline passes inputs through unchanged.
 
 ### ac-connection-changes-output: Connecting cells produces observable output change
 > **Center:** This is the center's most direct expression — making a connection changes what a cell IS (what it produces), proving that connection is the primary creative act.
@@ -98,7 +98,7 @@ Within the Scope's center column, the pipeline configurator (stage sequence) and
 ### ac-pipeline-stage-types: Three composable effect types
 > **Center:** Three general-purpose effect types let a Synthesizer's behavior emerge from composition of simple parts rather than from selecting a specialized type.
 
-The three pipeline stage types are: (1) Chat — prompt template with model response, (2) Code — deterministic transform expressed as user-written logic, (3) AI — schema-constrained generation with optional structured output. Each stage type is available in any position in the pipeline. A pipeline can mix types freely (e.g., Code then AI then Code). **(E)**
+The three pipeline stage types are: (1) Prompt — single prompt-response with model, (2) Code — deterministic transform expressed as user-written logic, (3) AI — schema-constrained generation with optional structured output. Each stage type is available in any position in the pipeline. A pipeline can mix types freely (e.g., Code then AI then Code).
 
 ### ac-stage-handoff: Pipeline stages pass output forward
 > **Center:** Sequential handoff within the pipeline mirrors the connection pattern of the canvas — output becomes input — reinforcing composition-through-connection at a smaller scale.
@@ -173,7 +173,7 @@ Workspaces created under the current five-type system (Markdown, PDF, Transform,
 
 **IN (building):**
 - Two cell types: Signal and Synthesizer
-- Composable internal pipeline (Chat, Code, AI stages in any order)
+- Composable internal pipeline (Prompt, Code, AI stages in any order)
 - Canvas connections with signal propagation
 - Three-column Scope view for both cell types
 - Compact at-rest display (output preview, health dot, title label)
@@ -189,7 +189,7 @@ Workspaces created under the current five-type system (Markdown, PDF, Transform,
 - Property panels, minimap, or resize handles at rest
 - Type-specific visual distinction between Signal and Synthesizer at rest (beyond connection topology)
 - Node type selector menu (beyond the binary Signal/Synthesizer choice)
-- Conversation-style chat interface as a pipeline stage (Chat stages use prompt templates, not multi-turn conversation)
+- Conversation-style chat interface as a pipeline stage (Prompt stages use single prompt-response, not multi-turn conversation)
 
 **DEFERRED (future):**
 - Keyboard-first interaction model

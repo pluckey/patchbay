@@ -1,10 +1,12 @@
 # Semantic Synthesizer
 
+> **Note:** This brief's "one primitive" model evolved during the whiteboard and requirements phases into a **two-primitive model**: Signal (source content) and Synthesizer (composable effect pipeline). The brief below captures the original vision; the requirements and design specs reflect the refined model.
+
 Context Canvas is a semantic synthesizer. The user composes meaning by routing context through chains of modules — not by writing documents.
 
 ## The Paradigm
 
-**One primitive: the Cell.** No node type menu. You create a cell, put content in it. Its role is determined by topology — no inputs = source, has inputs = effect. Same interface either way.
+**Two primitives: Signal and Synthesizer.** You create a Signal cell (source content — text, PDF, API data) or a Synthesizer cell (effect processor with a composable pipeline of Prompt/Code/AI stages). The canvas connections between cells determine what flows where. Inside a Synthesizer, the user composes any sequence of effects; between cells, n-degree connectivity on the canvas provides fan-in and rich topology.
 
 **Everything is signal.** Context flows as JSON between cells. A source cell originates signal (text, PDF, data). An effect cell modulates signal (AI instruction, JS code, passthrough concatenation). The lines between cells are patch cables. What emerges from the patching is the composition.
 

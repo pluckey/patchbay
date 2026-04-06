@@ -50,15 +50,15 @@ last_modified: 2026-04-05T00:00:00Z
 
 ## Tasks
 
-### t-cell-entities: Define Cell, SignalCell, SynthesizerCell, PipelineStage, StageResult, PdfSource, HealthStatus entities and update Workspace | kernel entity creation
+### t-cell-entities: Define Cell, SignalCell, SynthesizerCell, PipelineStage, StageResult, PdfAttachment, HealthStatus entities and update Workspace | kernel entity creation
 > **Center:** Establishes the two-primitive foundation (Signal + Synthesizer) that makes identity emerge from composition rather than type declaration.
 > **Traces:** ac-two-primitives, ac-signal-as-source, ac-synthesizer-as-effect, ac-pipeline-stage-types, ac-stage-handoff, ac-health-indicator, ac-migration-from-existing, ac-cycle-support
 > **Depends:** (none)
 > **Files:**
 > - `src/kernel/entities/cell.ts` (create) — Cell, SignalCell, SynthesizerCell, BaseCell
-> - `src/kernel/entities/pipeline-stage.ts` (create) — PipelineStage, ChatStage, CodeStage, AiStage
+> - `src/kernel/entities/pipeline-stage.ts` (create) — PipelineStage, PromptStage, CodeStage, AiStage
 > - `src/kernel/entities/stage-result.ts` (create) — StageResult (replaces TransformResult with output:unknown)
-> - `src/kernel/entities/pdf-source.ts` (create) — PdfSource
+> - `src/kernel/entities/pdf-source.ts` (create) — PdfAttachment
 > - `src/kernel/entities/health-status.ts` (create) — HealthStatus
 > - `src/kernel/entities/legacy-v10.ts` (create) — copy of current WorkspaceNode types for migration
 > - `src/kernel/entities/workspace.ts` (modify) — cells:Cell[] replaces nodes:WorkspaceNode[]
@@ -67,7 +67,7 @@ last_modified: 2026-04-05T00:00:00Z
 > **Status:** pending
 
 - **Implements**: da-e01, da-e02, da-e03, da-e04, da-e05, da-e06, da-e07, da-e08, da-e09, da-e10, da-e11, da-e12
-- **Done when**: `Cell`, `SignalCell`, `SynthesizerCell`, `PipelineStage`, `ChatStage`, `CodeStage`, `AiStage`, `StageResult`, `PdfSource`, `HealthStatus` are exported from `kernel/entities/index.ts`. `Workspace.cells` is typed as `Cell[]`. `WorkspaceNode` is NOT exported from barrel (only from `legacy-v10.ts`). `Connection` entity preserved unchanged. `StageResult.output` is typed as `unknown`.
+- **Done when**: `Cell`, `SignalCell`, `SynthesizerCell`, `PipelineStage`, `PromptStage`, `CodeStage`, `AiStage`, `StageResult`, `PdfAttachment`, `HealthStatus` are exported from `kernel/entities/index.ts`. `HealthStatus` is a 5-state union: `"current" | "stale" | "error" | "computing" | "blocked"`. `Workspace.cells` is typed as `Cell[]`. **`Workspace.nodes` exists as a deprecated alias for `cells`** (type alias or getter) to prevent compilation breakage in downstream files until Wave 8. `WorkspaceNode` is NOT exported from barrel (only from `legacy-v10.ts`). `Connection` entity preserved unchanged. `StageResult.output` is typed as `unknown`.
 
 ---
 
@@ -93,11 +93,13 @@ last_modified: 2026-04-05T00:00:00Z
 > - `src/kernel/transforms/resize-cell.ts` (create — renamed from resize-node)
 > - `src/kernel/transforms/duplicate-cell.ts` (create — renamed from duplicate-node)
 > - `src/kernel/transforms/validate-connection.ts` (modify — reject signal targets)
+> - `src/kernel/transforms/topological-sort.ts` (create — returns cell IDs in dependency order)
+> - `src/kernel/transforms/detect-cycles.ts` (create — returns arrays of cell IDs forming cycles)
 > **Wave:** 2
 > **Status:** pending
 
-- **Implements**: da-t01, da-t02, da-t03, da-t04, da-t05, da-t06, da-t07, da-t08, da-t09, da-t11, da-t12, da-t13, da-t14, da-t15, da-t16, da-t19, da-t20
-- **Done when**: All listed transform files exist with pure functions that take Cell/Cell[] and return new Cell/Cell[]. `moveCell`, `removeCell`, `resizeCell`, `duplicateCell` operate on `Cell[]` (not `WorkspaceNode[]`). `validateConnection` rejects connections where target is a SignalCell. `computeHealth` returns HealthStatus. `resolveInputs` returns `Record<string, unknown>` ordered by `inputOrder`. `findTerminalCells` returns cells with no outgoing connections.
+- **Implements**: da-t01, da-t02, da-t03, da-t04, da-t05, da-t06, da-t07, da-t08, da-t09, da-t11, da-t12, da-t13, da-t14, da-t15, da-t16, da-t19, da-t20, da-t21, da-t22
+- **Done when**: All listed transform files exist with pure functions that take Cell/Cell[] and return new Cell/Cell[]. `moveCell`, `removeCell`, `resizeCell`, `duplicateCell` operate on `Cell[]` (not `WorkspaceNode[]`). `validateConnection` rejects connections where target is a SignalCell. `computeHealth` returns 5-state HealthStatus ("current" | "stale" | "error" | "computing" | "blocked"). `resolveInputs` returns `Record<string, unknown>` ordered by `inputOrder`. `findTerminalCells` returns cells with no outgoing connections. `topologicalSort` returns cell IDs in dependency order. `detectCycles` returns arrays of cell IDs forming cycles (empty array if DAG).
 
 ---
 
@@ -111,7 +113,7 @@ last_modified: 2026-04-05T00:00:00Z
 > **Status:** pending
 
 - **Implements**: da-t10
-- **Done when**: `migrateV10ToV11` is a pure function that takes a v10 workspace shape (using types from `legacy-v10.ts`) and returns a v11 `Workspace` with `cells: Cell[]`. Mapping: MarkdownNode to SignalCell, PdfNode to SignalCell with PdfSource, TransformNode to SynthesizerCell with CodeStage, ChatNode to SynthesizerCell with ChatStage (messages dropped), AiTransformNode to SynthesizerCell with AiStage. `inputOrder` populated from connections sorted by `createdAt`. All `id`, `position`, `dimensions`, `createdAt`, `updatedAt` fields preserved.
+- **Done when**: `migrateV10ToV11` is a pure function that takes a v10 workspace shape (using types from `legacy-v10.ts`) and returns a v11 `Workspace` with `cells: Cell[]`. Mapping: MarkdownNode to SignalCell, PdfNode to SignalCell with PdfAttachment, TransformNode to SynthesizerCell with CodeStage, ChatNode to SynthesizerCell with PromptStage (messages dropped), AiTransformNode to SynthesizerCell with AiStage. `inputOrder` populated from connections sorted by `createdAt`. All `id`, `position`, `dimensions`, `createdAt`, `updatedAt` fields preserved. **TransformNode code is wrapped in a compatibility shim** that concatenates the `Record<string, unknown>` inputs into a single string, matching the old `input: string` contract so existing user-written transform code does not break on first execution.
 
 ---
 
@@ -139,7 +141,7 @@ last_modified: 2026-04-05T00:00:00Z
 > **Status:** pending
 
 - **Implements**: da-a03
-- **Done when**: `CURRENT_VERSION` is 11. `StorageEnvelope` has `cells: Cell[]` instead of `nodes: WorkspaceNode[]`. `migrate()` chain runs v1-v10 as before (loosely typed), then applies `migrateV10ToV11` for v10-to-v11 step. `toWorkspace` returns `Workspace` with `cells`. `toEnvelope` serializes `cells`. `parseEnvelope` correctly upgrades v10 data to v11. Old v1-v9 migrations remain functional.
+- **Done when**: `CURRENT_VERSION` is 11. `StorageEnvelope` has `cells: Cell[]` instead of `nodes: WorkspaceNode[]`. `migrate()` chain runs v1-v10 as before (loosely typed), then applies `migrateV10ToV11` for v10-to-v11 step. **Before applying v10-to-v11 migration, the raw v10 JSON is copied to `.context-canvas/backups/{workspaceId}-v10-{timestamp}.json` as an irreversibility safety net.** `toWorkspace` returns `Workspace` with `cells`. `toEnvelope` serializes `cells`. `parseEnvelope` correctly upgrades v10 data to v11. Old v1-v9 migrations remain functional.
 
 ---
 
@@ -168,7 +170,7 @@ last_modified: 2026-04-05T00:00:00Z
 > **Status:** pending
 
 - **Implements**: da-u01
-- **Done when**: `executePipeline(cell, inputs, ports, onStageComplete?)` is a function that: (1) takes a SynthesizerCell, resolved inputs as `Record<string, unknown>`, and port references (ChatPort, TransformExecutorPort, AiExecutorPort); (2) folds over `cell.pipeline` stages sequentially — first stage receives resolved inputs, each subsequent stage receives previous output; (3) dispatches ChatStage to ChatPort (collecting AsyncIterable into string), CodeStage to TransformExecutorPort, AiStage to AiExecutorPort; (4) halts on error (returns cell with error StageResult on failing stage, subsequent stages untouched); (5) calls `onStageComplete` between stages for UI progress; (6) returns updated SynthesizerCell with StageResult on each executed stage and `lastExecutedAt` set.
+- **Done when**: `executePipeline(cell, inputs, ports, onStageComplete?)` is a function that: (1) takes a SynthesizerCell, resolved inputs as `Record<string, unknown>`, and port references (ChatPort, TransformExecutorPort, AiExecutorPort); (2) folds over `cell.pipeline` stages sequentially — first stage receives resolved inputs, each subsequent stage receives previous output; (3) dispatches PromptStage to ChatPort (collecting AsyncIterable into string), CodeStage to TransformExecutorPort, AiStage to AiExecutorPort; (4) halts on error (returns cell with error StageResult on failing stage, subsequent stages untouched); (5) calls `onStageComplete` between stages for UI progress; (6) returns updated SynthesizerCell with StageResult on each executed stage and `lastExecutedAt` set.
 
 ---
 
@@ -252,7 +254,7 @@ last_modified: 2026-04-05T00:00:00Z
 > **Status:** pending
 
 - **Implements**: da-h02
-- **Done when**: Hook takes `cells: Cell[]`, `connections: Connection[]`, and port dependencies. Auto-executes all SynthesizerCells with connections when cells or connections change (debounced). Uses `resolveInputs` to gather inputs, calls `executePipeline` use case, updates cell state with StageResult via `onStageComplete`. Provides `executeCell(cellId)` for manual re-execution. Returns execution state (which cells are running). Previous `pipelineResults: Map` pattern replaced by StageResult on the cells themselves.
+- **Done when**: Hook takes `cells: Cell[]`, `connections: Connection[]`, and port dependencies. On connection change: (1) runs `detectCycles` — if cycles found, marks cyclic cells with a warning state and skips execution for those cells; (2) runs `topologicalSort` to determine dependency order; (3) identifies only downstream-affected SynthesizerCells from the changed connection; (4) executes affected cells in topological order (debounced). Uses `resolveInputs` to gather inputs, calls `executePipeline` use case, updates cell state with StageResult via `onStageComplete`. Provides `executeCell(cellId)` for manual re-execution. Returns execution state (which cells are running/computing). Previous `pipelineResults: Map` pattern replaced by StageResult on the cells themselves.
 
 ---
 
@@ -282,7 +284,7 @@ last_modified: 2026-04-05T00:00:00Z
 > **Status:** pending
 
 - **Implements**: da-c01, da-c09, da-c11
-- **Done when**: `CellNode` renders: editable title, HealthDot (green/amber/red), truncated output preview, connection ports (source-only for Signal, source+target for Synthesizer), delete/duplicate affordances. No internal configuration visible. Error message text visible below title when health is "error". `HealthDot` is a colored circle component accepting HealthStatus. `ConnectionEdge` is a custom xyflow edge with visual weight per ac-connection-presence. All use semantic tokens (no hardcoded colors except through Geist-compliant tokens).
+- **Done when**: `CellNode` renders: editable title, HealthDot (green/amber/red/blue-computing/gray-blocked), truncated output preview, connection ports (source-only for Signal, source+target for Synthesizer), delete/duplicate affordances. No internal configuration visible. Error message text visible below title when health is "error". `HealthDot` is a colored circle component accepting HealthStatus. `ConnectionEdge` is a custom xyflow edge with visual weight per ac-connection-presence. All use semantic tokens (no hardcoded colors except through Geist-compliant tokens).
 
 ---
 
@@ -308,14 +310,14 @@ last_modified: 2026-04-05T00:00:00Z
 > **Depends:** t-cell-entities
 > **Files:**
 > - `src/client/ui/components/PipelineEditor.tsx` (create)
-> - `src/client/ui/components/ChatStageConfig.tsx` (create)
+> - `src/client/ui/components/PromptStageConfig.tsx` (create)
 > - `src/client/ui/components/CodeStageConfig.tsx` (create)
 > - `src/client/ui/components/AiStageConfig.tsx` (create)
 > **Wave:** 6
 > **Status:** pending
 
 - **Implements**: da-c06, da-c07
-- **Done when**: `PipelineEditor` renders stage list with add/remove/reorder affordances. Selecting a stage shows its config alongside the stage list (no drill-down, ac-scope-depth). `ChatStageConfig` has prompt textarea, model picker. `CodeStageConfig` has code editor (reuse TransformCodeEditor), timeout. `AiStageConfig` has instruction textarea, model picker, output mode toggle, schema builder (reuse SchemaBuilder). Each stage shows its StageResult (success output, error message, or running indicator). Stage handoff visualized: each stage shows what it received and what it produced.
+- **Done when**: `PipelineEditor` renders stage list with add/remove/reorder affordances. Selecting a stage shows its config alongside the stage list (no drill-down, ac-scope-depth). `PromptStageConfig` has prompt textarea, model picker. `CodeStageConfig` has code editor (reuse TransformCodeEditor), timeout. `AiStageConfig` has instruction textarea, model picker, output mode toggle, schema builder (reuse SchemaBuilder). Each stage shows its StageResult (success output, error message, or running indicator). Stage handoff visualized: each stage shows what it received and what it produced.
 
 ---
 
@@ -329,7 +331,7 @@ last_modified: 2026-04-05T00:00:00Z
 > **Status:** pending
 
 - **Implements**: da-c04
-- **Done when**: `EditorPanel` renders: for SignalCell without PdfSource, a text editor (reuse MarkdownContent or similar). For SignalCell with PdfSource, a PDF viewer (reuse PdfContent or similar). For SynthesizerCell, the `PipelineEditor`. Delegates based on cell type and source field. Does not introduce additional nesting beyond the two-level maximum (Canvas > Scope).
+- **Done when**: `EditorPanel` renders: for SignalCell without PdfAttachment, a text editor (reuse MarkdownContent or similar). For SignalCell with PdfAttachment, a PDF viewer (reuse PdfContent or similar). For SynthesizerCell, the `PipelineEditor`. Delegates based on cell type and attachment field. Does not introduce additional nesting beyond the two-level maximum (Canvas > Scope).
 
 ---
 
@@ -408,7 +410,7 @@ last_modified: 2026-04-05T00:00:00Z
 > **Status:** pending
 
 - **Implements**: da-c13, da-c14, da-c15, da-c16, da-c17
-- **Done when**: No file in the project imports from deleted files. No reference to `WorkspaceNode`, `MarkdownNodeData`, `PdfNodeData`, `TransformNodeData`, `ChatNodeData`, `AiTransformNodeData` except in `legacy-v10.ts` (used by migration only). `kernel/transforms/index.ts` exports only Cell-based transforms plus connection transforms. TypeScript compiles cleanly. Application runs end-to-end.
+- **Done when**: No file in the project imports from deleted files. No reference to `WorkspaceNode`, `MarkdownNodeData`, `PdfNodeData`, `TransformNodeData`, `ChatNodeData`, `AiTransformNodeData` except in `legacy-v10.ts` (used by migration only). `kernel/transforms/index.ts` exports only Cell-based transforms plus connection transforms. **The deprecated `Workspace.nodes` alias from Wave 1 is eliminated** — all consumers now use `cells` directly. TypeScript compiles cleanly. Application runs end-to-end.
 
 ---
 

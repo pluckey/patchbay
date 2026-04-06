@@ -21,7 +21,7 @@ last_modified: 2026-04-05T00:00:00Z
 ### Key Agreements (all four panelists)
 
 1. **Two-type discriminated union** (SignalCell | SynthesizerCell) replaces the 5-type WorkspaceNode. Entity-level simplification.
-2. **PipelineStage as a discriminated union** (ChatStage | CodeStage | AiStage) with result co-located on each stage — not separated into a parallel execution-state structure.
+2. **PipelineStage as a discriminated union** (PromptStage | CodeStage | AiStage) with result co-located on each stage — not separated into a parallel execution-state structure.
 3. **inputOrder lives on SynthesizerCell**, not on Connection. The receiving cell owns the ordering of its inputs.
 4. **No new ports needed.** The `executePipeline` use case dispatches to existing ChatPort, TransformExecutorPort, and AiExecutorPort. Stage-type dispatch IS domain logic and belongs in the use case, not behind another port abstraction.
 5. **computeHealth is a pure kernel transform** — derives current/stale/error from stage results and input freshness. Never persisted.
@@ -31,11 +31,11 @@ last_modified: 2026-04-05T00:00:00Z
 
 ### Key Debates Resolved
 
-**PipelineExecutorPort vs. use-case orchestration** (Bob vs. Kent): Bob initially proposed a single PipelineExecutorPort. Kent argued the use case should orchestrate stage-by-stage, calling existing ports directly. Bob conceded — a new port would add indirection without value. The dispatch logic (chat→ChatPort, code→TransformExecutorPort, ai→AiExecutorPort) is domain knowledge that belongs in the use case.
+**PipelineExecutorPort vs. use-case orchestration** (Bob vs. Kent): Bob initially proposed a single PipelineExecutorPort. Kent argued the use case should orchestrate stage-by-stage, calling existing ports directly. Bob conceded — a new port would add indirection without value. The dispatch logic (prompt→ChatPort, code→TransformExecutorPort, ai→AiExecutorPort) is domain knowledge that belongs in the use case.
 
 **Result co-location vs. separation** (Rich vs. Kent): Rich proposed separating stage configuration from execution results (StageExecution indexed by stageId). Kent and Bob argued the UI needs them together, and index/ID correlation adds accidental complexity. Rich conceded with the compromise that `lastExecutedAt` on the cell tracks overall execution freshness.
 
-**PDF in Signal** (Bob vs. Martin): Bob proposed a `contentType` discriminant on SignalCell. Martin proposed an optional `source` field that carries PDF-specific metadata. Kent sided with Martin — more extensible, no sub-hierarchy. Consensus: `source?: PdfSource` on SignalCell.
+**PDF in Signal** (Bob vs. Martin): Bob proposed a `contentType` discriminant on SignalCell. Martin proposed an optional field that carries PDF-specific metadata. Kent sided with Martin — more extensible, no sub-hierarchy. Consensus: `attachment?: PdfAttachment` on SignalCell.
 
 **StageResult.output type** (Rich): Rich pushed for `unknown` instead of `string` to satisfy ac-stage-handoff ("JS objects"). All agreed. This widens the current `TransformResult.output: string` to `StageResult.output: unknown`.
 
@@ -48,15 +48,15 @@ last_modified: 2026-04-05T00:00:00Z
 | ID | Name | Type | Action | Key Attributes | Traces to ACs |
 |----|------|------|--------|---------------|---------------|
 | da-e01 | Cell | Kernel Entity | Create | Union: SignalCell \| SynthesizerCell. BaseCell: id, position, dimensions?, title, createdAt, updatedAt | ac-two-primitives, ac-signal-as-source, ac-synthesizer-as-effect, ac-title-labels |
-| da-e02 | SignalCell | Kernel Entity | Create | type:"signal", content:string, source?:PdfSource | ac-signal-as-source, ac-two-primitives |
+| da-e02 | SignalCell | Kernel Entity | Create | type:"signal", content:string, attachment?:PdfAttachment | ac-signal-as-source, ac-two-primitives |
 | da-e03 | SynthesizerCell | Kernel Entity | Create | type:"synthesizer", pipeline:PipelineStage[], inputOrder:string[], lastExecutedAt?:number | ac-synthesizer-as-effect, ac-two-primitives, ac-input-ordering |
-| da-e04 | PipelineStage | Kernel Entity | Create | Union: ChatStage \| CodeStage \| AiStage. BaseStage: id, result?:StageResult | ac-pipeline-stage-types, ac-stage-handoff |
-| da-e05 | ChatStage | Kernel Entity | Create | type:"chat", prompt, provider, model | ac-pipeline-stage-types |
+| da-e04 | PipelineStage | Kernel Entity | Create | Union: PromptStage \| CodeStage \| AiStage. BaseStage: id, result?:StageResult | ac-pipeline-stage-types, ac-stage-handoff |
+| da-e05 | PromptStage | Kernel Entity | Create | type:"prompt", prompt, provider, model | ac-pipeline-stage-types |
 | da-e06 | CodeStage | Kernel Entity | Create | type:"code", code, timeoutMs | ac-pipeline-stage-types |
 | da-e07 | AiStage | Kernel Entity | Create | type:"ai", instruction, provider, model, outputMode, schema?, schemaMode? | ac-pipeline-stage-types |
 | da-e08 | StageResult | Kernel Entity | Create | success{output:unknown, durationMs} \| error{message, durationMs, timedOut?} \| running. Replaces TransformResult with widened output | ac-error-halt, ac-health-indicator, ac-stage-handoff |
-| da-e09 | PdfSource | Kernel Entity | Create | kind:"pdf", blobId, filename, currentPage, totalPages, zoomLevel, darkMode, annotations | ac-migration-from-existing |
-| da-e10 | HealthStatus | Kernel Entity | Create | "current" \| "stale" \| "error" — derived, never persisted | ac-health-indicator |
+| da-e09 | PdfAttachment | Kernel Entity | Create | kind:"pdf", blobId, filename, currentPage, totalPages, zoomLevel, darkMode, annotations | ac-migration-from-existing |
+| da-e10 | HealthStatus | Kernel Entity | Create | "current" \| "stale" \| "error" \| "computing" \| "blocked" — derived, never persisted. "computing" = actively executing, "blocked" = upstream in error or computing | ac-health-indicator |
 | da-e11 | Connection | Kernel Entity | Preserve | id, sourceId, targetId, label, createdAt — unchanged | ac-connection-changes-output, ac-canvas-primacy |
 | da-e12 | Workspace | Kernel Entity | Modify | cells:Cell[] replaces nodes:WorkspaceNode[]; rest unchanged | ac-two-primitives |
 
@@ -64,7 +64,7 @@ last_modified: 2026-04-05T00:00:00Z
 
 | ID | Name | Type | Action | Key Attributes | Traces to ACs |
 |----|------|------|--------|---------------|---------------|
-| da-t01 | createSignalCell | Kernel Transform | Create | (position, content?, source?) → SignalCell | ac-signal-as-source |
+| da-t01 | createSignalCell | Kernel Transform | Create | (position, content?, attachment?) → SignalCell | ac-signal-as-source |
 | da-t02 | createSynthesizerCell | Kernel Transform | Create | (position) → SynthesizerCell with empty pipeline | ac-synthesizer-as-effect |
 | da-t03 | addStage | Kernel Transform | Create | (cell, stageType, config?) → SynthesizerCell with new stage appended | ac-pipeline-stage-types |
 | da-t04 | removeStage | Kernel Transform | Create | (cell, stageId) → SynthesizerCell without that stage | ac-pipeline-stage-types |
@@ -84,13 +84,15 @@ last_modified: 2026-04-05T00:00:00Z
 | da-t18 | removeConnection | Kernel Transform | Preserve | Unchanged | ac-canvas-primacy |
 | da-t19 | validateConnection | Kernel Transform | Modify | Reject connections targeting Signal cells | ac-signal-as-source |
 | da-t20 | duplicateCell | Kernel Transform | Modify | Rename from duplicateNode, works with Cell | -- |
+| da-t21 | topologicalSort | Kernel Transform | Create | (cells, connections) → string[] — returns cell IDs in dependency order for execution scheduling | ac-connection-changes-output |
+| da-t22 | detectCycles | Kernel Transform | Create | (cells, connections) → string[][] — returns arrays of cell IDs forming cycles, empty if DAG | ac-cycle-support |
 
 ### Ports
 
 | ID | Name | Type | Action | Key Attributes | Traces to ACs |
 |----|------|------|--------|---------------|---------------|
 | da-p01 | StoragePort | Port | Preserve | load/save unchanged; Workspace internal shape changes transparently | ac-migration-from-existing |
-| da-p02 | ChatPort | Port | Preserve | sendMessage → AsyncIterable<string>. Used by chat stages and assistant | ac-pipeline-stage-types |
+| da-p02 | ChatPort | Port | Preserve | sendMessage → AsyncIterable<string>. Used by prompt stages and chat assistant | ac-pipeline-stage-types |
 | da-p03 | TransformExecutorPort | Port | Preserve | execute(code, input, timeout). Used by code stages | ac-pipeline-stage-types |
 | da-p04 | AiExecutorPort | Port | Preserve | execute(request). Used by AI stages | ac-pipeline-stage-types |
 | da-p05 | BlobStoragePort | Port | Preserve | PDF blob storage | ac-migration-from-existing |
@@ -131,7 +133,7 @@ last_modified: 2026-04-05T00:00:00Z
 | da-c04 | EditorPanel | Component | Create | Delegates to TextEditor, PdfViewer, or PipelineEditor by cell type | ac-stable-scope-layout |
 | da-c05 | OutputPanel | Component | Create | Cell output display with health indicator | ac-stable-scope-layout, ac-health-indicator |
 | da-c06 | PipelineEditor | Component | Create | Stage list (add/remove/reorder) + stage config side-by-side. No drill-down | ac-scope-depth, ac-pipeline-stage-types |
-| da-c07 | StageConfig | Component | Create | Per-type config: ChatStageConfig, CodeStageConfig, AiStageConfig | ac-pipeline-stage-types |
+| da-c07 | StageConfig | Component | Create | Per-type config: PromptStageConfig, CodeStageConfig, AiStageConfig | ac-pipeline-stage-types |
 | da-c08 | MixView | Component | Create | Composed output of all terminal cells | ac-mix-view |
 | da-c09 | HealthDot | Component | Create | Green/amber/red circle | ac-health-indicator, ac-error-visibility |
 | da-c10 | NodeShell | Component | Modify | Simplified for uniform cell display | ac-compact-display |
@@ -152,10 +154,10 @@ Workspace (da-e12)
   |-- cells: Cell[] (da-e01)
   |     |-- SignalCell (da-e02)
   |     |     |-- content: string
-  |     |     '-- source?: PdfSource (da-e09)
+  |     |     '-- attachment?: PdfAttachment (da-e09)
   |     '-- SynthesizerCell (da-e03)
   |           |-- pipeline: PipelineStage[] (da-e04)
-  |           |     |-- ChatStage (da-e05) --has--> StageResult? (da-e08)
+  |           |     |-- PromptStage (da-e05) --has--> StageResult? (da-e08)
   |           |     |-- CodeStage (da-e06) --has--> StageResult? (da-e08)
   |           |     '-- AiStage (da-e07) --has--> StageResult? (da-e08)
   |           '-- inputOrder: string[] --references--> Cell.id
@@ -175,9 +177,10 @@ Dependency flow (all arrows point INWARD):
   Kernel Entities --import--> NOTHING
 
 executePipeline (da-u01) dispatch:
-  ChatStage (da-e05) --> ChatPort (da-p02)
+  PromptStage (da-e05) --> ChatPort (da-p02) — single prompt-response, stream collected
   CodeStage (da-e06) --> TransformExecutorPort (da-p03)
   AiStage (da-e07) --> AiExecutorPort (da-p04)
+  Cycle detection: da-t22 (detectCycles) guards execution; da-t21 (topologicalSort) orders it
 ```
 
 ---
@@ -187,11 +190,11 @@ executePipeline (da-u01) dispatch:
 | Behavior | Description | Traces to | Implementation |
 |----------|-------------|-----------|----------------|
 | Pipeline fold execution | Stages execute sequentially; each stage's output becomes next stage's input | ac-synthesizer-as-effect, ac-stage-handoff, ac-pipeline-subordination | da-u01 (executePipeline) |
-| Stage-type dispatch | chat→ChatPort, code→TransformExecutorPort, ai→AiExecutorPort | ac-pipeline-stage-types | da-u01 internal dispatch |
-| Chat stream collection | Pipeline chat stages collect AsyncIterable into complete string | ac-pipeline-stage-types | da-u01 helper |
+| Stage-type dispatch | prompt→ChatPort, code→TransformExecutorPort, ai→AiExecutorPort | ac-pipeline-stage-types | da-u01 internal dispatch |
+| Prompt stream collection | Pipeline prompt stages collect AsyncIterable into complete string | ac-pipeline-stage-types | da-u01 helper |
 | Error halt | Error at stage N stops execution; stages N+1..M marked blocked | ac-error-halt | da-u01 |
 | Per-stage progress | onStageComplete callback fires between stages for UI updates | ac-stage-handoff | da-u01 param + da-h02 |
-| Connection-triggered reactivity | Connection add/remove marks downstream cells stale; optionally auto-executes | ac-connection-changes-output | da-h02 |
+| Connection-triggered reactivity | Connection add/remove marks only downstream-affected cells stale via topological sort; auto-executes affected cells in dependency order (not all cells) | ac-connection-changes-output | da-h02, da-t21 |
 | Health derivation | Compute current/stale/error from stage results + input freshness | ac-health-indicator | da-t07 (computeHealth) |
 | Signal input rejection | validateConnection prevents connections targeting Signal cells | ac-signal-as-source | da-t19 |
 | Input ordering | SynthesizerCell.inputOrder determines input feed order to first stage | ac-input-ordering | da-t09 (resolveInputs) + da-c03 |
@@ -213,7 +216,7 @@ executePipeline (da-u01) dispatch:
 
 **Mix View:** Single action opens read-only view showing all terminal cells' titles and outputs composed together.
 
-**Chat Assistant (deferred):** Separate panel/overlay on any cell, visually distinct from pipeline chat stages, using ChatPort directly. History in component state only.
+**Chat Assistant (deferred):** Separate panel/overlay on any cell, visually distinct from pipeline prompt stages, using ChatPort directly. History in component state only.
 
 ---
 
@@ -228,7 +231,7 @@ executePipeline (da-u01) dispatch:
 | MarkdownNode | SignalCell | content → content, title = "Untitled" |
 | PdfNode | SignalCell | title = filename, content = "", source = {kind:"pdf", blobId, filename, currentPage, totalPages, zoomLevel, darkMode, annotations} |
 | TransformNode | SynthesizerCell | pipeline = [{type:"code", code: transformCode, timeoutMs}], inputOrder = [] |
-| ChatNode | SynthesizerCell | pipeline = [{type:"chat", prompt: "", provider, model}], inputOrder = []. **Message history is lost.** |
+| ChatNode | SynthesizerCell | pipeline = [{type:"prompt", prompt: "", provider, model}], inputOrder = []. **Message history is lost.** |
 | AiTransformNode | SynthesizerCell | pipeline = [{type:"ai", instruction, provider, model, outputMode, schema, schemaMode}], inputOrder = [] |
 
 **Post-migration:** inputOrder populated from existing connections sorted by createdAt.
@@ -239,7 +242,7 @@ executePipeline (da-u01) dispatch:
 
 **localStorage:** Same key format, version bumps to 11. Migrate in-memory on load if version < 11.
 
-**Blob storage:** Unchanged. PdfSource.blobId references existing blobs.
+**Blob storage:** Unchanged. PdfAttachment.blobId references existing blobs.
 
 ---
 
@@ -279,7 +282,7 @@ executePipeline (da-u01) dispatch:
 
 1. **ChatNode message history is lost on migration.** Chat stages in the new model execute once per run — they don't accumulate messages. Old chat history cannot be preserved in the new pipeline model.
 
-2. **PDF Signal output is the PdfSource object.** A PDF signal's downstream output is its `PdfSource` metadata (blobId, filename, currentPage, totalPages, annotations, etc.), not its `content` field. Downstream Code stages use `pdf.*` helpers or direct property access to extract what they need. The `content` field on SignalCell is for text-based signals only.
+2. **PDF Signal output is the PdfAttachment object.** A PDF signal's downstream output is its `PdfAttachment` metadata (blobId, filename, currentPage, totalPages, annotations, etc.), not its `content` field. Downstream Code stages use `pdf.*` helpers or direct property access to extract what they need. The `content` field on SignalCell is for text-based signals only.
 
 3. **Cycle execution is deferred but cycles are not prevented.** The entity model allows circular connections. If a user creates one before cycle execution is implemented, a cycle detection guard in the execution hook should show a graceful warning rather than infinite-loop.
 

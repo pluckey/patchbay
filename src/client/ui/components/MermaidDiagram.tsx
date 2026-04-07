@@ -30,11 +30,22 @@ async function ensureMermaid() {
       // to emit malicious mermaid (e.g. `<img onerror=...>` in a label) which
       // "loose" mode will execute — but only against the user themselves.
       //
+      // KNOWN HOLE — external workspace writes: the server exposes
+      // `POST /api/workspaces/[id]/merge` for external writers and reloads
+      // workspace JSON from disk on poll. A workspace file authored by another
+      // tool (or hand-edited on disk) can plant a hostile mermaid block that
+      // self-XSS's against the user when the workspace next loads. Today the
+      // user controls both the disk and the merge endpoint, so this is still
+      // "you against yourself" — but the moment either becomes multi-tenant
+      // (shared filesystem, hosted merge endpoint, third-party agents writing
+      // workspaces) the threat model breaks and DOMPurify becomes mandatory.
+      //
       // If this app ever becomes multi-tenant, gets deployed publicly, or
       // starts processing content on behalf of a third party, this setting
       // MUST be revisited. Options at that point: switch to "strict" (loses
       // HTML in labels), "sandbox" (iframe isolation, requires render rework),
-      // or DOMPurify the SVG before injection.
+      // or DOMPurify the SVG before injection (preferred upgrade path — keeps
+      // labels, costs one dependency).
       securityLevel: "loose",
     })
     initialized = true

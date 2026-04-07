@@ -2,6 +2,22 @@
 
 import { Handle, Position } from "@xyflow/react"
 
+/**
+ * The four canvas attachment-point identifiers, exported so any future call
+ * site (programmatic edge creation, layout helpers, tests) imports the
+ * constant instead of re-typing the literal strings. These ids are written
+ * into Connection.sourcePort/targetPort and round-trip through persistence,
+ * so changing them is a storage-envelope migration — keep them stable.
+ */
+export const PORT_IDS = {
+  OUT_RIGHT: "out-right",
+  OUT_BOTTOM: "out-bottom",
+  IN_LEFT: "in-left",
+  IN_TOP: "in-top",
+} as const
+
+export type PortId = (typeof PORT_IDS)[keyof typeof PORT_IDS]
+
 type NodeIOHandlesProps = {
   /** Render the input (target) handles. False on source-only cells. */
   hasInput?: boolean
@@ -16,18 +32,18 @@ type NodeIOHandlesProps = {
 export function NodeIOHandles({ hasInput = true }: NodeIOHandlesProps) {
   return (
     <>
-      <Handle id="out-right" type="source" position={Position.Right} className={IO_HANDLE_CLASS}>
+      <Handle id={PORT_IDS.OUT_RIGHT} type="source" position={Position.Right} className={IO_HANDLE_CLASS}>
         <span className={IO_LABEL_CLASS}>O</span>
       </Handle>
-      <Handle id="out-bottom" type="source" position={Position.Bottom} className={IO_HANDLE_CLASS}>
+      <Handle id={PORT_IDS.OUT_BOTTOM} type="source" position={Position.Bottom} className={IO_HANDLE_CLASS}>
         <span className={IO_LABEL_CLASS}>O</span>
       </Handle>
       {hasInput && (
         <>
-          <Handle id="in-left" type="target" position={Position.Left} className={IO_HANDLE_CLASS}>
+          <Handle id={PORT_IDS.IN_LEFT} type="target" position={Position.Left} className={IO_HANDLE_CLASS}>
             <span className={IO_LABEL_CLASS}>I</span>
           </Handle>
-          <Handle id="in-top" type="target" position={Position.Top} className={IO_HANDLE_CLASS}>
+          <Handle id={PORT_IDS.IN_TOP} type="target" position={Position.Top} className={IO_HANDLE_CLASS}>
             <span className={IO_LABEL_CLASS}>I</span>
           </Handle>
         </>

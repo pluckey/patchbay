@@ -8,19 +8,18 @@ type StructuredOutputDisplayProps = {
 }
 
 function renderValue(value: unknown, type: string) {
-  if (type === "string[]" && Array.isArray(value)) {
-    if (value.length === 0) return <span className="text-[10px] text-muted-foreground">empty</span>
-    return (
-      <ul className="list-disc list-outside ml-4 text-sm text-foreground space-y-0.5">
-        {value.map((item, i) => (
-          <li key={i}>{String(item)}</li>
-        ))}
-      </ul>
-    )
-  }
   if (type.endsWith("[]") && Array.isArray(value)) {
     if (value.length === 0) return <span className="text-[10px] text-muted-foreground">empty</span>
     const itemType = type.slice(0, -2)
+    if (itemType === "string") {
+      return (
+        <ul className="list-disc list-outside ml-4 text-sm text-foreground space-y-0.5">
+          {value.map((item, i) => (
+            <li key={i}>{String(item)}</li>
+          ))}
+        </ul>
+      )
+    }
     return (
       <span className="text-sm text-foreground">
         {value.map((item, i) => (

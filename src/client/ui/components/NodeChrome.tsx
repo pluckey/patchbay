@@ -10,10 +10,12 @@ type NodeChromeProps = {
   entityId: string
   /**
    * Singular noun used in the delete confirm dialog and aria labels:
-   * "Delete this {entityLabel}?". Keeps the chrome generic over both legacy
-   * WorkspaceNodes and signal-field Cells.
+   * "Delete this {entityLabel}?". Plain string — the chrome doesn't branch
+   * on the value, so a closed union would only buy false safety. Today's
+   * call sites pass "node" (NodeShell) and "cell" (CellShell); future
+   * entities can pass anything they like.
    */
-  entityLabel: "node" | "cell"
+  entityLabel: string
   /**
    * Title bar content — typically status indicator + label. Already-composed
    * ReactNode so callers can prepend a HealthDot, status pill, etc.

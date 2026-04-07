@@ -5,7 +5,7 @@ import type { Node, NodeProps } from "@xyflow/react"
 import { Play, Loader2 } from "lucide-react"
 import { CellShell } from "./CellShell"
 import { StructuredViewSwitcher } from "./StructuredViewSwitcher"
-import { parseStructuredOutput } from "./structured-output"
+import { parseStructuredOutput } from "@/client/lib/structured-output"
 import { MarkdownView } from "./MarkdownView"
 import type { CellFlowNodeData } from "@/client/adapters/canvas/flow-node-mapper"
 

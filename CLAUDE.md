@@ -11,6 +11,7 @@ src/
   kernel/             ← INNERMOST: shared pure types + transforms. Zero ports, zero frameworks.
     entities/         ← Data types (WorkspaceNode, Connection, Position, Viewport, PdfDocument)
     transforms/       ← Pure functions (createNode, moveNode, validateConnection, etc.)
+    source-kinds/     ← Source kind plugin registry (registry, contribution type). Pure data, no concrete kinds.
 
   client/             ← CLIENT APPLICATION: its own Clean Architecture boundary
     domain/
@@ -24,11 +25,12 @@ src/
       chat/           ← ChatPort implementation (fetch to /api/chat)
       model-roster/   ← ModelRosterPort implementation (fetch to /api/models)
       ai-executor/    ← AiExecutorPort implementation (fetch to /api/chat, non-streaming)
+    source-kinds/     ← Concrete source kind contributions (markdown, pdf, derived) registered into the kernel registry
     ui/
       hooks/          ← React hooks bridging UI to domain use cases (via DI context)
       components/     ← React components (receive data + callbacks via props)
       app/            ← AdaptersContext + WorkspaceManagerContext (DI providers)
-    lib/              ← Utilities (cn)
+    lib/              ← Utilities (cn, parseStructuredOutput)
 
   server/             ← SERVER APPLICATION: Node.js-only utilities and adapters.
     config/           ← Provider roster and configuration (model-roster, provider dispatch config)
@@ -65,6 +67,15 @@ xyflow imports are NOT allowed in:
 ### Drag Concession Pattern
 
 During an active drag, xyflow owns node position transiently (for 60fps). On `onNodeDragStop`, the final position is committed back to domain state via `moveNode`. Do not try to sync every pixel through React state.
+
+### Source Kind Registry Pattern
+
+Cell source kinds (markdown, pdf, derived, ...) are pluggable through a shared registry. The kernel owns the registry shape; the client owns the concrete contributions and the registration entrypoint.
+
+- **Kernel side** (`src/kernel/source-kinds/`): `SourceKindContribution` type + `SourceKindRegistry` class + the `sourceKindRegistry` singleton. Pure data, no framework dependencies. The registry's `register` is idempotent for hot-reload (Next.js Fast Refresh re-evaluates contribution modules).
+- **Client side** (`src/client/source-kinds/`): one file per concrete kind (`markdown-source-kind.ts`, `pdf-source-kind.ts`, `derived-source-kind.ts`) plus an `index.ts` that imports the kernel registry and registers each contribution as a side effect.
+- **Single registration point**: both the main thread and the cell worker import `client/source-kinds/index.ts` to populate their context's registry. Adding a new source kind = one new contribution file + one `register()` call. No other file changes.
+- The four named consumers (cell worker, cell executor, type-def generator, cascade) all go through `sourceKindRegistry.get(kind)` — they never import a specific contribution file directly.
 
 ### Persistence Pattern
 

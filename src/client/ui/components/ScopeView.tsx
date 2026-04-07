@@ -8,7 +8,7 @@ import { ScopeOutputColumn } from "./ScopeOutputColumn"
 import { ScopeSourceEditor } from "./ScopeSourceEditor"
 import { ScopeCodeEditor } from "./ScopeCodeEditor"
 import { ScopeAiEditor } from "./ScopeAiEditor"
-import { parseStructuredOutput } from "./structured-output"
+import { parseStructuredOutput } from "@/client/lib/structured-output"
 
 interface ScopeInput {
   cellId: string

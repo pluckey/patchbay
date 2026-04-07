@@ -7,7 +7,7 @@ import { NodeShell } from "./NodeShell"
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
 import { SchemaBuilder } from "./SchemaBuilder"
 import { StructuredViewSwitcher } from "./StructuredViewSwitcher"
-import { parseStructuredOutput } from "./structured-output"
+import { parseStructuredOutput } from "@/client/lib/structured-output"
 import type { AiTransformFlowNodeData } from "@/client/adapters/canvas/flow-node-mapper"
 import type { ModelRosterEntry, SchemaField } from "@/kernel/entities"
 

@@ -165,11 +165,20 @@ export function useWorkspace({ getViewport }: UseWorkspaceArgs) {
 
   // --- Connection CRUD ---
   const handleCreateConnection = useCallback(
-    (sourceId: string, targetId: string): boolean => {
+    (sourceId: string, targetId: string, sourcePort?: string, targetPort?: string): boolean => {
       const validation = validateConnection(connectionsRef.current, nodesRef.current, sourceId, targetId, cellsRef.current)
       if (!validation.valid) return false
 
-      const conn = createConnection(sourceId, targetId, nodesRef.current, connectionsRef.current, cellsRef.current)
+      const conn = createConnection(
+        sourceId,
+        targetId,
+        {
+          nodes: nodesRef.current,
+          existingConnections: connectionsRef.current,
+          cells: cellsRef.current,
+        },
+        { sourcePort, targetPort },
+      )
       setConnections((prev) => {
         const updated = [...prev, conn]
         scheduleSave(nodesRef.current, updated)

@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
-import ReactMarkdown from "react-markdown"
 import { Switch } from "@/client/ui/components/ui/switch"
+import { MarkdownView } from "./MarkdownView"
 
 type ScopeSourceEditorProps = {
   content: string
@@ -74,7 +74,7 @@ export function ScopeSourceEditor({ content, onContentChange }: ScopeSourceEdito
         ) : (
           <div className="min-h-[40px] prose dark:prose-invert max-w-none">
             {content ? (
-              <ReactMarkdown>{content}</ReactMarkdown>
+              <MarkdownView content={content} />
             ) : (
               <p className="text-muted-foreground italic">
                 Toggle edit to add content...

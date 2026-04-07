@@ -2,10 +2,12 @@
 
 import { memo, useState, useCallback, useMemo } from "react"
 import type { NodeProps } from "@xyflow/react"
+import { Play } from "lucide-react"
 import { NodeShell } from "./NodeShell"
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
 import { SchemaBuilder } from "./SchemaBuilder"
-import { StructuredOutputDisplay } from "./StructuredOutputDisplay"
+import { StructuredViewSwitcher } from "./StructuredViewSwitcher"
+import { parseStructuredOutput } from "./structured-output"
 import type { AiTransformFlowNodeData } from "@/client/adapters/canvas/flow-node-mapper"
 import type { ModelRosterEntry, SchemaField } from "@/kernel/entities"
 
@@ -41,12 +43,8 @@ function AiTransformNodeInner({ data }: NodeProps) {
   )
 
   const parsedStructuredData = useMemo(() => {
-    if (outputMode !== "structured" || result?.status !== "success" || !result.output) return null
-    try {
-      return JSON.parse(result.output) as Record<string, unknown> | Record<string, unknown>[]
-    } catch {
-      return null
-    }
+    if (outputMode !== "structured" || result?.status !== "success") return null
+    return parseStructuredOutput(result.output)
   }, [outputMode, result])
 
   const currentDisplay = roster.find((e) => e.provider === provider && e.model === model)
@@ -63,11 +61,10 @@ function AiTransformNodeInner({ data }: NodeProps) {
     : result.status === "success" ? "bg-primary"
     : "bg-destructive"
 
-  const header = (
-    <div className="flex items-center gap-2 px-3 py-1.5">
+  const title = (
+    <>
       <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${statusColor}`} />
-      <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">AI Transform</span>
-
+      <span className="text-xs font-medium text-foreground truncate">AI Transform</span>
       <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
         <PopoverTrigger asChild>
           <button
@@ -104,39 +101,51 @@ function AiTransformNodeInner({ data }: NodeProps) {
           ))}
         </PopoverContent>
       </Popover>
+    </>
+  )
 
-      <div className="flex-1" />
-
+  const headerActions = (
+    <>
       <button
+        type="button"
         onPointerDown={(e) => e.stopPropagation()}
         onClick={() => onOutputModeChange(nodeId, outputMode === "text" ? "structured" : "text")}
         disabled={result?.status === "running"}
-        className={`text-[10px] px-1.5 py-0.5 rounded nodrag ${outputMode === "structured" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+        className={`nodrag text-[10px] px-1.5 py-0.5 rounded ${outputMode === "structured" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
       >
         {outputMode === "structured" ? "json" : "text"}
       </button>
-
       <button
+        type="button"
         onPointerDown={(e) => e.stopPropagation()}
         onClick={() => onAutoExecuteToggle(nodeId)}
-        className={`text-[10px] px-1.5 py-0.5 rounded nodrag ${autoExecute ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+        className={`nodrag text-[10px] px-1.5 py-0.5 rounded ${autoExecute ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
       >
         {autoExecute ? "auto" : "manual"}
       </button>
-
       <button
+        type="button"
         onPointerDown={(e) => e.stopPropagation()}
         onClick={() => onExecute(nodeId)}
         disabled={result?.status === "running"}
-        className="text-[10px] text-muted-foreground hover:text-foreground disabled:opacity-50 nodrag"
+        className="nodrag flex items-center justify-center w-5 h-5 rounded text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-colors disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
+        title="Run AI transform"
+        aria-label="Run AI transform"
       >
-        &#9654;
+        <Play size={12} fill="currentColor" />
       </button>
-    </div>
+    </>
   )
 
   return (
-    <NodeShell nodeId={nodeId} onDelete={onDelete} onDuplicate={onDuplicate} onResizeEnd={onResizeEnd} header={header}>
+    <NodeShell
+      nodeId={nodeId}
+      onDelete={onDelete}
+      onDuplicate={onDuplicate}
+      onResizeEnd={onResizeEnd}
+      title={title}
+      headerActions={headerActions}
+    >
       <div className="flex flex-col gap-0 h-full">
         {/* Input legend */}
         {inputLegend.length > 0 && (
@@ -222,7 +231,7 @@ function AiTransformNodeInner({ data }: NodeProps) {
           )}
           {result?.status === "success" && result.output ? (
             outputMode === "structured" && parsedStructuredData ? (
-              <StructuredOutputDisplay data={parsedStructuredData} schema={schema} />
+              <StructuredViewSwitcher data={parsedStructuredData} schema={schema} />
             ) : (
               <pre className="text-sm font-mono whitespace-pre-wrap break-words text-foreground">{result.output}</pre>
             )

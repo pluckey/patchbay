@@ -43,45 +43,57 @@ function TransformNodeInner({ data }: NodeProps) {
 
   const durationMs = transformResult && "durationMs" in transformResult ? transformResult.durationMs : undefined
 
-  const header = (
-    <div className="flex items-center gap-2 px-3 py-1.5">
+  const title = (
+    <>
       <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${statusColor}`} />
-      <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
-        Transform
-      </span>
+      <span className="text-xs font-medium text-foreground truncate">Transform</span>
       {durationMs !== undefined && (
         <span className="text-[10px] text-muted-foreground">{formatDuration(durationMs)}</span>
       )}
-      <div className="ml-auto flex items-center gap-1">
-        <select
-          value={timeoutMs}
-          onChange={(e) => onTimeoutChange(nodeId, Number(e.target.value))}
-          onPointerDown={(e) => e.stopPropagation()}
-          className="text-[10px] bg-transparent text-muted-foreground border-none outline-none cursor-pointer"
-        >
-          {TIMEOUT_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-        <button
-          className="text-[10px] text-muted-foreground hover:text-foreground"
-          onClick={() => onRerun(nodeId)}
-          title="Re-run transform"
-        >
-          run
-        </button>
-        <button
-          className="text-[10px] text-muted-foreground hover:text-foreground"
-          onClick={() => setIsEditing(!isEditing)}
-        >
-          {isEditing ? "done" : "edit"}
-        </button>
-      </div>
-    </div>
+    </>
+  )
+
+  const headerActions = (
+    <>
+      <select
+        value={timeoutMs}
+        onChange={(e) => onTimeoutChange(nodeId, Number(e.target.value))}
+        onPointerDown={(e) => e.stopPropagation()}
+        className="nodrag text-[10px] bg-transparent text-muted-foreground border-none outline-none cursor-pointer"
+      >
+        {TIMEOUT_OPTIONS.map((opt) => (
+          <option key={opt.value} value={opt.value}>{opt.label}</option>
+        ))}
+      </select>
+      <button
+        type="button"
+        className="nodrag text-[10px] text-muted-foreground hover:text-foreground px-1"
+        onClick={() => onRerun(nodeId)}
+        onPointerDown={(e) => e.stopPropagation()}
+        title="Re-run transform"
+      >
+        run
+      </button>
+      <button
+        type="button"
+        className="nodrag text-[10px] text-muted-foreground hover:text-foreground px-1"
+        onClick={() => setIsEditing(!isEditing)}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        {isEditing ? "done" : "edit"}
+      </button>
+    </>
   )
 
   return (
-    <NodeShell nodeId={nodeId} onDelete={onDelete} onDuplicate={onDuplicate} onResizeEnd={onResizeEnd} header={header}>
+    <NodeShell
+      nodeId={nodeId}
+      onDelete={onDelete}
+      onDuplicate={onDuplicate}
+      onResizeEnd={onResizeEnd}
+      title={title}
+      headerActions={headerActions}
+    >
       <div className="p-2 gap-1 h-full" style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
         {/* Input legend */}
         {inputLegend.length > 0 && (

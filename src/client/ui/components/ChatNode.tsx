@@ -2,9 +2,9 @@
 
 import { memo, useState, useRef, useEffect, useCallback } from "react"
 import type { NodeProps } from "@xyflow/react"
-import ReactMarkdown from "react-markdown"
 import { NodeShell } from "./NodeShell"
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
+import { MarkdownView } from "./MarkdownView"
 import type { ChatFlowNodeData } from "@/client/adapters/canvas/flow-node-mapper"
 import type { ModelRosterEntry } from "@/kernel/entities"
 
@@ -60,10 +60,10 @@ function ChatNodeInner({ data }: NodeProps) {
     return acc
   }, {})
 
-  const header = (
-    <div className="flex items-center gap-2 px-3 py-1.5">
+  const title = (
+    <>
       <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${isStreaming ? "bg-indicator animate-pulse" : systemPrompt ? "bg-primary" : "bg-muted-foreground"}`} />
-      <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Chat</span>
+      <span className="text-xs font-medium text-foreground truncate">Chat</span>
       <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
         <PopoverTrigger asChild>
           <button
@@ -118,34 +118,50 @@ function ChatNodeInner({ data }: NodeProps) {
           )}
         </PopoverContent>
       </Popover>
-      <div className="ml-auto flex gap-1">
+    </>
+  )
+
+  const headerActions = (
+    <>
+      <button
+        type="button"
+        onClick={() => setTab("chat")}
+        onPointerDown={(e) => e.stopPropagation()}
+        className={`nodrag text-[10px] px-1 ${tab === "chat" ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+      >
+        chat
+      </button>
+      <button
+        type="button"
+        onClick={() => setTab("details")}
+        onPointerDown={(e) => e.stopPropagation()}
+        className={`nodrag text-[10px] px-1 ${tab === "details" ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+      >
+        details
+      </button>
+      {messages.length > 0 && (
         <button
-          onClick={() => setTab("chat")}
-          className={`text-[10px] ${tab === "chat" ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          type="button"
+          onClick={() => onResetChat(nodeId)}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="nodrag text-[10px] px-1 text-muted-foreground hover:text-foreground disabled:opacity-50"
+          disabled={isStreaming}
         >
-          chat
+          reset
         </button>
-        <button
-          onClick={() => setTab("details")}
-          className={`text-[10px] ${tab === "details" ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-        >
-          details
-        </button>
-        {messages.length > 0 && (
-          <button
-            onClick={() => onResetChat(nodeId)}
-            className="text-[10px] text-muted-foreground hover:text-foreground disabled:opacity-50"
-            disabled={isStreaming}
-          >
-            reset
-          </button>
-        )}
-      </div>
-    </div>
+      )}
+    </>
   )
 
   return (
-    <NodeShell nodeId={nodeId} onDelete={onDelete} onDuplicate={onDuplicate} onResizeEnd={onResizeEnd} header={header}>
+    <NodeShell
+      nodeId={nodeId}
+      onDelete={onDelete}
+      onDuplicate={onDuplicate}
+      onResizeEnd={onResizeEnd}
+      title={title}
+      headerActions={headerActions}
+    >
       <div className="flex flex-col h-full" style={{ minHeight: 0 }}>
         {tab === "details" ? (
           <DetailsTab
@@ -174,7 +190,7 @@ function ChatNodeInner({ data }: NodeProps) {
                   }>
                     {msg.role === "assistant" ? (
                       <div className="prose dark:prose-invert prose-sm max-w-none prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-pre:my-1 prose-blockquote:my-1">
-                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        <MarkdownView content={msg.content} />
                       </div>
                     ) : (
                       <p className="whitespace-pre-wrap m-0">{msg.content}</p>

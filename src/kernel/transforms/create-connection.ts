@@ -3,16 +3,26 @@ import type { Connection } from "../entities/connection"
 import type { WorkspaceNode } from "../entities/workspace-node"
 import type { Cell } from "../entities/cell"
 
+export type CreateConnectionGraph = {
+  nodes: WorkspaceNode[]
+  existingConnections: Connection[]
+  cells?: Cell[]
+}
+
+export type CreateConnectionOptions = {
+  sourcePort?: string
+  targetPort?: string
+}
+
 export function createConnection(
   sourceId: string,
   targetId: string,
-  nodes: WorkspaceNode[],
-  existingConnections: Connection[],
-  cells?: Cell[]
+  graph: CreateConnectionGraph,
+  options: CreateConnectionOptions = {},
 ): Connection {
-  const sourceNode = nodes.find((n) => n.id === sourceId)
-  const sourceCell = cells?.find((c) => c.id === sourceId)
-  const label = generateLabel(sourceNode, existingConnections, sourceCell)
+  const sourceNode = graph.nodes.find((n) => n.id === sourceId)
+  const sourceCell = graph.cells?.find((c) => c.id === sourceId)
+  const label = generateLabel(sourceNode, graph.existingConnections, sourceCell)
 
   return {
     id: nanoid(),
@@ -21,6 +31,8 @@ export function createConnection(
     label,
     createdAt: Date.now(),
     gate: 'open' as const,
+    ...(options.sourcePort ? { sourcePort: options.sourcePort } : {}),
+    ...(options.targetPort ? { targetPort: options.targetPort } : {}),
   }
 }
 

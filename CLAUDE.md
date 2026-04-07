@@ -54,7 +54,7 @@ src/
 
 xyflow imports are allowed in:
 - `src/client/adapters/canvas/` — flow-node-mapper, use-canvas-binding
-- `src/client/ui/components/` — Canvas.tsx, CanvasProvider.tsx, NodeShell.tsx, node components (MarkdownNode, PdfNode, TransformNode, ChatNode, AiTransformNode)
+- `src/client/ui/components/` — any component whose primary responsibility is rendering or wiring a canvas node or edge. The rule is "node/edge rendering files only." Current examples: `Canvas.tsx`, `CanvasProvider.tsx`, the shared chrome (`NodeChrome.tsx`, `NodeIOHandles.tsx`, `NodeShell.tsx`, `CellShell.tsx`), the per-type renderers (`MarkdownNode`, `PdfNode`, `TransformNode`, `ChatNode`, `AiTransformNode`, `CellNode`), and the edge renderer (`LabeledEdge`).
 
 xyflow imports are NOT allowed in:
 - `src/kernel/` — never
@@ -75,7 +75,7 @@ During an active drag, xyflow owns node position transiently (for 60fps). On `on
 - **Manifest store**: `server/storage/fs-manifest-store.ts` — `readManifest()`, `writeManifest()`, `withManifestLock()`. Independent mutex from workspace lock
 - **Lazy migration**: `server/storage/migrate-to-multi-workspace.ts` — idempotent, triggered on first `GET /api/workspaces`. Migrates legacy single-file format to multi-workspace
 - **API routes**: `GET/POST/PATCH /api/workspaces` (collection + activeId), `GET/PUT/DELETE/PATCH /api/workspaces/[id]` (instance), `POST /api/workspaces/[id]/merge` (external writes). Legacy `/api/workspace` routes preserved as backward-compatible shims
-- localStorage cache key: `"context-canvas:workspace:{workspaceId}"`, JSON with `version: 10` envelope
+- localStorage cache key: `"context-canvas:workspace:{workspaceId}"`, JSON with `version: 12` envelope
 - 300ms trailing-edge debounce on save after any mutation
 - Synchronous `beforeunload` flush to prevent data loss on tab close
 - `load()` returns `null` on any failure (parse error, missing key) — never throws
@@ -167,6 +167,7 @@ Use shadcn/ui components (`src/client/ui/components/ui/`) for all standard UI el
 - Client components need `'use client'` directive (Next.js App Router)
 - Tailwind v4: `@import "tailwindcss"` + `@plugin` syntax, not v3 `@tailwind` directives
 - localStorage ~5MB limit — sufficient for text nodes, IndexedDB for binary
+- PDF upload limit is 200 MB (`kernel/transforms/validate-pdf-upload.ts`), but Vercel serverless functions cap request bodies at 4.5 MB. Uploads >4.5 MB will 413 in production. To support large PDFs on Vercel, use direct-to-storage uploads (Vercel Blob client uploads, presigned S3/R2 URLs) instead of POSTing through `/api/blobs`
 - `components.json` paths must match `client/ui/` structure for `npx shadcn add` to work
 - PdfRendererPort.renderPage returns HTMLCanvasElement — known tech debt (DOM type in port interface)
 

@@ -1,5 +1,5 @@
 import type { Node, Edge } from "@xyflow/react"
-import type { Position, WorkspaceNode, Connection, TransformResult, Message, InputLegendEntry, ModelRosterEntry, SchemaField, PdfAnnotation, PdfRegion, Cell, CellOutput } from "@/kernel/entities"
+import type { Position, WorkspaceNode, Connection, TransformResult, Message, InputLegendEntry, ModelRosterEntry, SchemaField, PdfAnnotation, PdfRegion, Cell, CellOutput, AiCellData } from "@/kernel/entities"
 import type { StalenessStatus } from "@/kernel/transforms"
 
 export type MarkdownFlowNodeData = {
@@ -296,6 +296,12 @@ export function toFlowEdges(connections: Connection[], edgeCallbacks: EdgeCallba
     id: conn.id,
     source: conn.sourceId,
     target: conn.targetId,
+    // Translate kernel attachment-point ids to xyflow's required Edge API.
+    // The kernel uses sourcePort/targetPort (domain vocabulary); xyflow's Edge
+    // requires sourceHandle/targetHandle. This is the single write-direction
+    // translation point in the canvas adapter.
+    sourceHandle: conn.sourcePort,
+    targetHandle: conn.targetPort,
     type: "labeledEdge",
     animated: true,
     selectable: true,
@@ -343,6 +349,12 @@ export type CellFlowNodeData = {
   code?: string
   /** Instruction prompt for ai cells — surfaced so the canvas card shows what the cell asks. */
   instruction?: string
+  /** AI cell output mode — when "structured", the card parses output.text as JSON and renders via StructuredOutputDisplay. */
+  outputMode?: AiCellData['outputMode']
+  /** AI cell schema mode — "single" object vs "collection" array. */
+  schemaMode?: AiCellData['schemaMode']
+  /** AI cell schema — drives StructuredOutputDisplay rendering on the card. */
+  schema?: SchemaField[]
   callbacks: CellCardCallbacks
 }
 
@@ -362,6 +374,9 @@ export function cellsToFlowNodes(
       hasInput: cell.type !== 'source',
       code: cell.type === 'code' ? cell.code : undefined,
       instruction: cell.type === 'ai' ? cell.instruction : undefined,
+      outputMode: cell.type === 'ai' ? cell.outputMode : undefined,
+      schemaMode: cell.type === 'ai' ? cell.schemaMode : undefined,
+      schema: cell.type === 'ai' ? cell.schema : undefined,
       callbacks,
     }
 

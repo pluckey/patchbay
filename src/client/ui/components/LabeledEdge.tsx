@@ -59,7 +59,14 @@ export function LabeledEdge({
 
   return (
     <>
-      <BaseEdge id={id} path={edgePath} style={{ stroke: selected ? "var(--color-primary)" : "var(--color-border)", strokeWidth: selected ? 2 : 1.5 }} />
+      <BaseEdge
+        id={id}
+        path={edgePath}
+        style={{
+          stroke: selected ? "var(--color-primary)" : "var(--color-muted-foreground)",
+          strokeWidth: selected ? 3 : 2,
+        }}
+      />
       <foreignObject
         x={labelX - 60}
         y={labelY - 10}

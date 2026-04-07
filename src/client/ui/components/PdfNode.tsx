@@ -22,10 +22,11 @@ function PdfNodeInner({ data }: NodeProps) {
       onDelete={onDelete}
       onDuplicate={onDuplicate}
       onResizeEnd={onResizeEnd}
-      header={
-        <div className="px-3 py-2 text-xs text-muted-foreground truncate">
-          {filename}
-        </div>
+      title={
+        <>
+          <span className="inline-block w-2 h-2 rounded-full bg-muted-foreground/50 shrink-0" />
+          <span className="text-xs font-medium text-foreground truncate">{filename}</span>
+        </>
       }
     >
       <Suspense

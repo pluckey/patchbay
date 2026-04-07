@@ -2,7 +2,7 @@
 
 import type { CellOutput, SchemaField } from "@/kernel/entities"
 import { Button } from "@/client/ui/components/ui/button"
-import { StructuredOutputDisplay } from "@/client/ui/components/StructuredOutputDisplay"
+import { StructuredViewSwitcher } from "@/client/ui/components/StructuredViewSwitcher"
 
 type CellType = 'source' | 'ai' | 'code'
 
@@ -82,7 +82,7 @@ export function ScopeOutputColumn({
       {output?.status === 'success' && (
         <div className="flex flex-col gap-2">
           {structuredData ? (
-            <StructuredOutputDisplay data={structuredData.data} schema={structuredData.schema} />
+            <StructuredViewSwitcher data={structuredData.data} schema={structuredData.schema} />
           ) : (
             <pre className="text-sm text-foreground whitespace-pre-wrap overflow-y-auto font-mono">
               {output.text}

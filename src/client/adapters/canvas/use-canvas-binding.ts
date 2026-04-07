@@ -43,7 +43,7 @@ type UseCanvasBindingArgs = {
   onAiSchemaModeChange: (nodeId: string, schemaMode: "single" | "collection") => void
   onAiExecute: (nodeId: string) => void
   roster: ModelRosterEntry[]
-  onCreateConnection: (sourceId: string, targetId: string) => boolean
+  onCreateConnection: (sourceId: string, targetId: string, sourcePort?: string, targetPort?: string) => boolean
   onRemoveConnection: (connectionId: string) => void
   onUpdateConnectionLabel: (connectionId: string, label: string) => void
   getViewport: () => { x: number; y: number; zoom: number }
@@ -182,11 +182,20 @@ export function useCanvasBinding({
     [onNodeDoubleClick]
   )
 
-  // Handle xyflow connection event — always create a plain edge
+  // Handle xyflow connection event — pipe attachment-point ids through so the
+  // line remembers which border it was dragged from/to. Xyflow names these
+  // sourceHandle/targetHandle on its FlowConnection event; the kernel calls
+  // them sourcePort/targetPort. This is the single read-direction translation
+  // point in the canvas adapter.
   const onConnect = useCallback(
     (params: FlowConnection) => {
       if (params.source && params.target) {
-        onCreateConnection(params.source, params.target)
+        onCreateConnection(
+          params.source,
+          params.target,
+          params.sourceHandle ?? undefined,
+          params.targetHandle ?? undefined,
+        )
       }
     },
     [onCreateConnection]

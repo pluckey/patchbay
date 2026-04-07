@@ -8,6 +8,7 @@ import { ScopeOutputColumn } from "./ScopeOutputColumn"
 import { ScopeSourceEditor } from "./ScopeSourceEditor"
 import { ScopeCodeEditor } from "./ScopeCodeEditor"
 import { ScopeAiEditor } from "./ScopeAiEditor"
+import { parseStructuredOutput } from "./structured-output"
 
 interface ScopeInput {
   cellId: string
@@ -84,20 +85,16 @@ export function ScopeView({
     window.addEventListener("mouseup", onMouseUp)
   }, [panelHeight])
 
+  // Parse failure now yields undefined so the output column falls through to its
+  // raw <pre> view — more honest than the previous {} placeholder, which silently
+  // rendered an empty structured display.
+  const parsedStructured =
+    cell.type === "ai" && cell.outputMode === "structured" && cell.output?.status === "success"
+      ? parseStructuredOutput(cell.output.text)
+      : null
   const structuredData =
-    cell.type === "ai" &&
-    cell.outputMode === "structured" &&
-    cell.output?.status === "success"
-      ? {
-          data: (() => {
-            try {
-              return JSON.parse(cell.output.text) as Record<string, unknown> | Record<string, unknown>[]
-            } catch {
-              return {}
-            }
-          })(),
-          schema: cell.schema,
-        }
+    parsedStructured && cell.type === "ai"
+      ? { data: parsedStructured, schema: cell.schema }
       : undefined
 
   return (

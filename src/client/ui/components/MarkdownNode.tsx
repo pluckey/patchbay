@@ -11,7 +11,18 @@ function MarkdownNodeInner({ data }: NodeProps) {
     data as unknown as MarkdownFlowNodeData
 
   return (
-    <NodeShell nodeId={nodeId} onDelete={onDelete} onDuplicate={onDuplicate} onResizeEnd={onResizeEnd}>
+    <NodeShell
+      nodeId={nodeId}
+      onDelete={onDelete}
+      onDuplicate={onDuplicate}
+      onResizeEnd={onResizeEnd}
+      title={
+        <>
+          <span className="inline-block w-2 h-2 rounded-full bg-muted-foreground/50 shrink-0" />
+          <span className="text-xs font-medium text-foreground truncate">Markdown</span>
+        </>
+      }
+    >
       <MarkdownContent
         content={content}
         onContentChange={(newContent) => onContentChange(nodeId, newContent)}

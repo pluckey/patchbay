@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
-import ReactMarkdown from "react-markdown"
 import { Switch } from "@/client/ui/components/ui/switch"
+import { MarkdownView } from "./MarkdownView"
 
 type MarkdownContentProps = {
   content: string
@@ -49,7 +49,7 @@ export function MarkdownContent({ content, onContentChange }: MarkdownContentPro
 
   return (
     <>
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-border shrink-0 bg-muted rounded-t-lg">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-border shrink-0 bg-muted">
         <Switch checked={isEditing} onCheckedChange={toggleEdit} />
         <span className="text-xs text-muted-foreground">Edit</span>
       </div>
@@ -70,7 +70,7 @@ export function MarkdownContent({ content, onContentChange }: MarkdownContentPro
         ) : (
           <div className="min-h-[40px]">
             {content ? (
-              <ReactMarkdown>{content}</ReactMarkdown>
+              <MarkdownView content={content} />
             ) : (
               <p className="text-muted-foreground italic">
                 Toggle edit to add content...

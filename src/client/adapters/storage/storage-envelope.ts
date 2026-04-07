@@ -2,7 +2,7 @@ import { nanoid } from "nanoid"
 import type { Workspace, WorkspaceNode, Connection, Cell } from "@/kernel/entities"
 
 export const STORAGE_KEY = "context-canvas:workspace"
-export const CURRENT_VERSION = 11
+export const CURRENT_VERSION = 12
 
 export type StorageEnvelope = {
   version: number
@@ -162,6 +162,34 @@ export function migrate(envelope: StorageEnvelope): StorageEnvelope {
         return raw.gate ? c : { ...c, gate: 'open' as const }
       }),
       version: 11,
+    }
+  }
+  // v11 → v12: rename connection.sourceHandle/targetHandle → sourcePort/targetPort.
+  // Bob's review: the kernel entity should not echo xyflow's vocabulary. The
+  // canvas adapter now translates between sourcePort/targetPort (kernel) and
+  // sourceHandle/targetHandle (xyflow Edge API). Existing persisted edges
+  // carry the old key names; this step rewrites them in place so the canvas
+  // adapter still finds an attachment-point id when the workspace reloads.
+  if (current.version < 12) {
+    current = {
+      ...current,
+      connections: (current.connections ?? []).map((c) => {
+        const raw = c as Record<string, unknown>
+        if (raw.sourceHandle === undefined && raw.targetHandle === undefined) {
+          return c
+        }
+        const next: Record<string, unknown> = { ...c }
+        if (raw.sourceHandle !== undefined) {
+          next.sourcePort = raw.sourceHandle
+          delete next.sourceHandle
+        }
+        if (raw.targetHandle !== undefined) {
+          next.targetPort = raw.targetHandle
+          delete next.targetHandle
+        }
+        return next as unknown as Connection
+      }),
+      version: 12,
     }
   }
 

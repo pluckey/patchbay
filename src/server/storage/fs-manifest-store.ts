@@ -16,20 +16,31 @@ const WORKSPACES_SUBDIR = path.join(WORKSPACE_DIR, "workspaces")
 
 // On Vercel serverless, each cold-start instance has empty /tmp. Seed the
 // demo workspace on first read so visitors always land on a populated canvas.
+//
+// Also re-seed when the bundled DEMO_WORKSPACE.id has changed since the last
+// time this instance seeded — that's how a deploy with a new seed picks up
+// without waiting for the instance to cold-start.
 let seedAttempted = false
 async function seedDemoIfMissing(): Promise<void> {
   if (seedAttempted) return
   seedAttempted = true
+
+  let existing: Manifest | null = null
   try {
-    await readFile(MANIFEST_FILE, "utf-8")
-    return
+    existing = JSON.parse(await readFile(MANIFEST_FILE, "utf-8")) as Manifest
   } catch {}
+
+  const hasCurrentDemo = existing?.workspaces.some((w) => w.id === DEMO_WORKSPACE.id) ?? false
+  if (existing && hasCurrentDemo) return
+
   await mkdir(WORKSPACES_SUBDIR, { recursive: true })
   const wsPath = path.join(WORKSPACES_SUBDIR, `${DEMO_WORKSPACE.id}.json`)
   await writeFile(wsPath, JSON.stringify(DEMO_WORKSPACE, null, 2), "utf-8")
   const now = Date.now()
   const manifest: Manifest = {
-    workspaces: [{ id: DEMO_WORKSPACE.id, name: DEMO_WORKSPACE.name, createdAt: now, updatedAt: now }],
+    workspaces: [
+      { id: DEMO_WORKSPACE.id, name: DEMO_WORKSPACE.name, createdAt: now, updatedAt: now },
+    ],
     activeId: DEMO_WORKSPACE.id,
   }
   await writeFile(MANIFEST_FILE, JSON.stringify(manifest, null, 2), "utf-8")

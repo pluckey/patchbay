@@ -3,6 +3,7 @@ import { streamChat as streamAnthropic } from "@/server/adapters/anthropic/chat"
 import { streamChat as streamOpenAICompat } from "@/server/adapters/openai-compat/chat"
 import { generateStructured as generateStructuredAnthropic } from "@/server/adapters/anthropic/structured"
 import { generateStructured as generateStructuredOpenAI } from "@/server/adapters/openai-compat/structured"
+import { withChatGuardrails } from "@/lib/chat-guard"
 import type { SchemaField } from "@/kernel/entities"
 
 type ChatParams = { messages: { role: "user" | "assistant"; content: string }[]; systemPrompt: string; model: string }
@@ -28,8 +29,15 @@ const structuredAdapterMap: Record<ProviderConfig["adapterType"], (params: Struc
 }
 
 export async function POST(request: Request) {
-  const body = await request.json()
-  const { messages, systemPrompt, model, provider, schema, schemaMode } = body
+  return withChatGuardrails(request, async (body) => {
+  const { messages, systemPrompt, model, provider, schema, schemaMode } = body as {
+    messages?: { role: "user" | "assistant"; content: string }[]
+    systemPrompt?: string
+    model?: string
+    provider?: string
+    schema?: SchemaField[]
+    schemaMode?: "single" | "collection"
+  }
 
   if (!Array.isArray(messages) || typeof model !== "string" || !model) {
     return new Response("Missing required fields: messages (array) and model (string)", { status: 400 })
@@ -54,7 +62,7 @@ export async function POST(request: Request) {
     try {
       const generate = structuredAdapterMap[providerConfig.adapterType]
       const resolvedMode = schemaMode === "collection" ? "collection" as const : "single" as const
-      const jsonString = await generate({ messages, systemPrompt, model, schema, schemaMode: resolvedMode }, providerConfig)
+      const jsonString = await generate({ messages: messages!, systemPrompt: systemPrompt ?? "", model: model!, schema, schemaMode: resolvedMode }, providerConfig)
       return new Response(jsonString, {
         headers: { "Content-Type": "application/json; charset=utf-8" },
       })
@@ -65,7 +73,7 @@ export async function POST(request: Request) {
 
   // Streaming text path (existing)
   const createStream = adapterMap[providerConfig.adapterType]
-  const chatStream = createStream({ messages, systemPrompt, model }, providerConfig)
+  const chatStream = createStream({ messages: messages!, systemPrompt: systemPrompt ?? "", model: model! }, providerConfig)
 
   const encoder = new TextEncoder()
   const stream = new ReadableStream({
@@ -87,5 +95,6 @@ export async function POST(request: Request) {
       "Content-Type": "text/plain; charset=utf-8",
       "Transfer-Encoding": "chunked",
     },
+  })
   })
 }

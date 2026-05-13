@@ -1,7 +1,8 @@
 import { readFile, writeFile, mkdir, rename, unlink } from "fs/promises"
 import path from "path"
+import { STORAGE_ROOT } from "./storage-root"
 
-const WORKSPACE_DIR = path.join(process.cwd(), ".context-canvas")
+const WORKSPACE_DIR = STORAGE_ROOT
 const WORKSPACE_FILE = path.join(WORKSPACE_DIR, "workspace.json")
 const WORKSPACE_TMP = path.join(WORKSPACE_DIR, "workspace.json.tmp")
 const WORKSPACES_DIR = path.join(WORKSPACE_DIR, "workspaces")

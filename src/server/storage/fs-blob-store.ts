@@ -1,7 +1,8 @@
 import { readFile, writeFile, mkdir, unlink } from "fs/promises"
 import path from "path"
+import { STORAGE_ROOT } from "./storage-root"
 
-const BLOBS_DIR = path.join(process.cwd(), ".context-canvas", "blobs")
+const BLOBS_DIR = path.join(STORAGE_ROOT, "blobs")
 const SAFE_ID_PATTERN = /^[a-zA-Z0-9_-]+$/
 
 export function isValidBlobId(id: string): boolean {

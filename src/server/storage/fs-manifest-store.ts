@@ -1,17 +1,42 @@
 import { readFile, writeFile, mkdir, rename } from "fs/promises"
 import path from "path"
 import type { WorkspaceRef } from "@/kernel/entities"
+import { STORAGE_ROOT } from "./storage-root"
+import { DEMO_WORKSPACE } from "./demo-seed"
 
 export type Manifest = {
   workspaces: WorkspaceRef[]
   activeId: string
 }
 
-const WORKSPACE_DIR = path.join(process.cwd(), ".context-canvas")
+const WORKSPACE_DIR = STORAGE_ROOT
 const MANIFEST_FILE = path.join(WORKSPACE_DIR, "manifest.json")
 const MANIFEST_TMP = path.join(WORKSPACE_DIR, "manifest.json.tmp")
+const WORKSPACES_SUBDIR = path.join(WORKSPACE_DIR, "workspaces")
+
+// On Vercel serverless, each cold-start instance has empty /tmp. Seed the
+// demo workspace on first read so visitors always land on a populated canvas.
+let seedAttempted = false
+async function seedDemoIfMissing(): Promise<void> {
+  if (seedAttempted) return
+  seedAttempted = true
+  try {
+    await readFile(MANIFEST_FILE, "utf-8")
+    return
+  } catch {}
+  await mkdir(WORKSPACES_SUBDIR, { recursive: true })
+  const wsPath = path.join(WORKSPACES_SUBDIR, `${DEMO_WORKSPACE.id}.json`)
+  await writeFile(wsPath, JSON.stringify(DEMO_WORKSPACE, null, 2), "utf-8")
+  const now = Date.now()
+  const manifest: Manifest = {
+    workspaces: [{ id: DEMO_WORKSPACE.id, name: DEMO_WORKSPACE.name, createdAt: now, updatedAt: now }],
+    activeId: DEMO_WORKSPACE.id,
+  }
+  await writeFile(MANIFEST_FILE, JSON.stringify(manifest, null, 2), "utf-8")
+}
 
 export async function readManifest(): Promise<Manifest | null> {
+  await seedDemoIfMissing()
   try {
     const raw = await readFile(MANIFEST_FILE, "utf-8")
     return JSON.parse(raw) as Manifest
@@ -21,7 +46,7 @@ export async function readManifest(): Promise<Manifest | null> {
 }
 
 export async function writeManifest(manifest: Manifest): Promise<void> {
-  await mkdir(WORKSPACE_DIR, { recursive: true })
+  await mkdir(WORKSPACES_SUBDIR, { recursive: true })
   await writeFile(MANIFEST_TMP, JSON.stringify(manifest, null, 2), "utf-8")
   await rename(MANIFEST_TMP, MANIFEST_FILE)
 }

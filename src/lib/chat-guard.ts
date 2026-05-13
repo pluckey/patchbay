@@ -1,12 +1,6 @@
 import { NextResponse } from "next/server"
-import { rateLimit, rateLimitResponse } from "./rate-limit"
+import { enforceRateLimit } from "./rate-limit"
 import { checkContent } from "./content-guard"
-
-function getClientIP(request: Request): string {
-  const xff = request.headers.get("x-forwarded-for")
-  if (xff) return xff.split(",")[0].trim()
-  return request.headers.get("x-real-ip") ?? "anon"
-}
 
 type Body = {
   messages?: Array<{ role: string; content: string }>
@@ -25,10 +19,8 @@ export async function withChatGuardrails(
   request: Request,
   handler: (body: Body) => Promise<Response>,
 ): Promise<Response> {
-  const ip = getClientIP(request)
-
-  const rl = await rateLimit(ip)
-  if (!rl.ok) return rateLimitResponse(rl.window)
+  const limited = await enforceRateLimit(request)
+  if (limited) return limited
 
   let body: Body | null
   try {

@@ -1,11 +1,26 @@
 import { readWorkspaceById, writeWorkspaceById, withWorkspaceLock } from "@/server/storage/fs-workspace-store"
 import { mergeWorkspace } from "@/server/storage/merge-workspace"
+import { enforceRateLimit } from "@/lib/rate-limit"
+import { DEMO_WORKSPACE } from "@/server/storage/demo-seed"
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const limited = await enforceRateLimit(request)
+  if (limited) return limited
+
   const { id } = await params
+
+  if (id === DEMO_WORKSPACE.id) {
+    return Response.json(
+      {
+        error:
+          "The seeded demo workspace is read-only on this deployment. Fork the repo (https://github.com/pluckey/patchbay) to run unrestricted.",
+      },
+      { status: 403 },
+    )
+  }
 
   try {
     const { nodes, connections } = await request.json()

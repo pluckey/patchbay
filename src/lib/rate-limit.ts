@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { Ratelimit } from "@upstash/ratelimit"
 import { Redis } from "@upstash/redis"
+import { getClientIP } from "./request-utils"
 
 const redis = Redis.fromEnv()
 
@@ -47,4 +48,20 @@ export function rateLimitResponse(window: "minute" | "day" | "redis-down" | "ses
         ? "Daily quota reached for this IP. Patchbay's public demo is capped — fork the repo to run unrestricted."
         : "Rate limit exceeded."
   return NextResponse.json({ error: message }, { status: 429 })
+}
+
+/**
+ * Thin per-route wrapper. Looks up the request's IP, runs the sliding-window
+ * rate limit, and returns:
+ *   - a NextResponse (429) when the request should be rejected
+ *   - null when the request should proceed
+ *
+ * Routes use this as `const limited = await enforceRateLimit(request); if (limited) return limited;`
+ * which keeps the call site to two lines.
+ */
+export async function enforceRateLimit(request: Request): Promise<NextResponse | null> {
+  const ip = getClientIP(request)
+  const rl = await rateLimit(ip)
+  if (!rl.ok) return rateLimitResponse(rl.window)
+  return null
 }

@@ -2,6 +2,8 @@ import { migrateToMultiWorkspace } from "@/server/storage/migrate-to-multi-works
 import { readManifest } from "@/server/storage/fs-manifest-store"
 import { readWorkspaceById, writeWorkspaceById, withWorkspaceLock } from "@/server/storage/fs-workspace-store"
 import { mergeWorkspace } from "@/server/storage/merge-workspace"
+import { enforceRateLimit } from "@/lib/rate-limit"
+import { DEMO_WORKSPACE } from "@/server/storage/demo-seed"
 
 async function getActiveWorkspaceId(): Promise<string | null> {
   await migrateToMultiWorkspace()
@@ -22,9 +24,23 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
+  const limited = await enforceRateLimit(request)
+  if (limited) return limited
   try {
     const activeId = await getActiveWorkspaceId()
     if (!activeId) return new Response("No active workspace", { status: 404 })
+
+    // Legacy single-workspace shim — block writes when the active workspace
+    // is the seeded demo so the public deployment stays pristine.
+    if (activeId === DEMO_WORKSPACE.id) {
+      return Response.json(
+        {
+          error:
+            "The seeded demo workspace is read-only on this deployment. Fork the repo (https://github.com/pluckey/patchbay) to run unrestricted.",
+        },
+        { status: 403 },
+      )
+    }
 
     const { deletedIds = [], ...envelope } = JSON.parse(await request.text())
 

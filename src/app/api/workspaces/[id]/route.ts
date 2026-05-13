@@ -3,6 +3,21 @@ import { readManifest, writeManifest, withManifestLock } from "@/server/storage/
 import { mergeWorkspace } from "@/server/storage/merge-workspace"
 import { migrateToMultiWorkspace } from "@/server/storage/migrate-to-multi-workspace"
 import { migrateToSignalField } from "@/server/storage/migrate-to-signal-field"
+import { enforceRateLimit } from "@/lib/rate-limit"
+import { DEMO_WORKSPACE } from "@/server/storage/demo-seed"
+
+// Reject mutations to the bundled "Should we migrate to CockroachDB?" demo
+// so visitors can't trample or delete it on the public deployment.
+function demoLocked(id: string): Response | null {
+  if (id !== DEMO_WORKSPACE.id) return null
+  return Response.json(
+    {
+      error:
+        "The seeded demo workspace is read-only on this deployment. Fork the repo (https://github.com/pluckey/patchbay) to run unrestricted.",
+    },
+    { status: 403 },
+  )
+}
 
 export async function GET(
   _request: Request,
@@ -30,8 +45,12 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const limited = await enforceRateLimit(request)
+  if (limited) return limited
   try {
     const { id } = await params
+    const locked = demoLocked(id)
+    if (locked) return locked
     const { deletedIds = [], ...envelope } = JSON.parse(await request.text())
 
     await withWorkspaceLock(async () => {
@@ -53,11 +72,15 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const limited = await enforceRateLimit(request)
+  if (limited) return limited
   try {
     const { id } = await params
+    const locked = demoLocked(id)
+    if (locked) return locked
 
     await migrateToMultiWorkspace()
 
@@ -97,8 +120,12 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const limited = await enforceRateLimit(request)
+  if (limited) return limited
   try {
     const { id } = await params
+    const locked = demoLocked(id)
+    if (locked) return locked
     const body = await request.json()
     const name = body.name
     if (typeof name !== "string" || name.trim().length === 0) {

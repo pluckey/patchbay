@@ -2,6 +2,7 @@ import { migrateToMultiWorkspace } from "@/server/storage/migrate-to-multi-works
 import { readManifest, writeManifest, withManifestLock } from "@/server/storage/fs-manifest-store"
 import { writeWorkspaceById } from "@/server/storage/fs-workspace-store"
 import { createWorkspaceRef } from "@/kernel/transforms"
+import { enforceRateLimit } from "@/lib/rate-limit"
 
 export async function GET() {
   try {
@@ -17,6 +18,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const limited = await enforceRateLimit(request)
+  if (limited) return limited
   try {
     const body = await request.json()
     const name = body.name
@@ -60,6 +63,8 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const limited = await enforceRateLimit(request)
+  if (limited) return limited
   try {
     const body = await request.json()
     const { activeId } = body

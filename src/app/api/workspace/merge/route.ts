@@ -3,7 +3,7 @@ import { readManifest } from "@/server/storage/fs-manifest-store"
 import { readWorkspaceById, writeWorkspaceById, withWorkspaceLock } from "@/server/storage/fs-workspace-store"
 import { mergeWorkspace } from "@/server/storage/merge-workspace"
 import { enforceRateLimit } from "@/lib/rate-limit"
-import { DEMO_WORKSPACE } from "@/server/storage/demo-seed"
+import { isDemoWorkspaceId } from "@/server/storage/demo-seed"
 
 export async function POST(request: Request) {
   const limited = await enforceRateLimit(request)
@@ -15,11 +15,11 @@ export async function POST(request: Request) {
     if (!activeId) return new Response("No active workspace", { status: 404 })
 
     // Legacy single-workspace shim — same demo-immutability rule.
-    if (activeId === DEMO_WORKSPACE.id) {
+    if (isDemoWorkspaceId(activeId)) {
       return Response.json(
         {
           error:
-            "The seeded demo workspace is read-only on this deployment. Fork the repo (https://github.com/pluckey/patchbay) to run unrestricted.",
+            "The seeded demo workspaces are read-only on this deployment. Fork the repo (https://github.com/pluckey/patchbay) to run unrestricted.",
         },
         { status: 403 },
       )

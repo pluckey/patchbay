@@ -4,16 +4,16 @@ import { mergeWorkspace } from "@/server/storage/merge-workspace"
 import { migrateToMultiWorkspace } from "@/server/storage/migrate-to-multi-workspace"
 import { migrateToSignalField } from "@/server/storage/migrate-to-signal-field"
 import { enforceRateLimit } from "@/lib/rate-limit"
-import { DEMO_WORKSPACE } from "@/server/storage/demo-seed"
+import { isDemoWorkspaceId } from "@/server/storage/demo-seed"
 
-// Reject mutations to the bundled "Should we migrate to CockroachDB?" demo
-// so visitors can't trample or delete it on the public deployment.
+// Reject mutations to any of the bundled demo workspaces so visitors can't
+// trample or delete them on the public deployment.
 function demoLocked(id: string): Response | null {
-  if (id !== DEMO_WORKSPACE.id) return null
+  if (!isDemoWorkspaceId(id)) return null
   return Response.json(
     {
       error:
-        "The seeded demo workspace is read-only on this deployment. Fork the repo (https://github.com/pluckey/patchbay) to run unrestricted.",
+        "The seeded demo workspaces are read-only on this deployment. Fork the repo (https://github.com/pluckey/patchbay) to run unrestricted.",
     },
     { status: 403 },
   )

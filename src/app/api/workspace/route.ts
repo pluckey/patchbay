@@ -3,7 +3,7 @@ import { readManifest } from "@/server/storage/fs-manifest-store"
 import { readWorkspaceById, writeWorkspaceById, withWorkspaceLock } from "@/server/storage/fs-workspace-store"
 import { mergeWorkspace } from "@/server/storage/merge-workspace"
 import { enforceRateLimit } from "@/lib/rate-limit"
-import { DEMO_WORKSPACE } from "@/server/storage/demo-seed"
+import { isDemoWorkspaceId } from "@/server/storage/demo-seed"
 
 async function getActiveWorkspaceId(): Promise<string | null> {
   await migrateToMultiWorkspace()
@@ -31,12 +31,12 @@ export async function PUT(request: Request) {
     if (!activeId) return new Response("No active workspace", { status: 404 })
 
     // Legacy single-workspace shim — block writes when the active workspace
-    // is the seeded demo so the public deployment stays pristine.
-    if (activeId === DEMO_WORKSPACE.id) {
+    // is any of the seeded demos so the public deployment stays pristine.
+    if (isDemoWorkspaceId(activeId)) {
       return Response.json(
         {
           error:
-            "The seeded demo workspace is read-only on this deployment. Fork the repo (https://github.com/pluckey/patchbay) to run unrestricted.",
+            "The seeded demo workspaces are read-only on this deployment. Fork the repo (https://github.com/pluckey/patchbay) to run unrestricted.",
         },
         { status: 403 },
       )

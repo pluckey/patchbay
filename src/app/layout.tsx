@@ -11,8 +11,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Context Canvas",
-  description: "Spatial AI context composition workspace",
+  title: "Patchbay",
+  description: "Spatial workspace for patching AI signal graphs",
 };
 
 export default function RootLayout({

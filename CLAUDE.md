@@ -1,6 +1,6 @@
-# Context Canvas
+# Patchbay
 
-Spatial workspace for composing AI context. Next.js 16, TypeScript, Tailwind CSS 4, @xyflow/react.
+Spatial workspace for patching AI signal graphs. Next.js 16, TypeScript, Tailwind CSS 4, @xyflow/react.
 
 ## Architecture: Clean Architecture
 

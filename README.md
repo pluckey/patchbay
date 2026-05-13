@@ -2,7 +2,9 @@
 
 > Spatial workspace for patching AI signal graphs — wire markdown, PDFs, code, and multi-provider LLM calls into a canvas; the terminal cells are your answer.
 
-![Patchbay canvas](docs/patchbay-canvas.png)
+![Patchbay canvas with multi-model deliberation and The Mix panel](docs/patchbay-canvas.png)
+
+*One source RFC fans out to four AI cells (Claude, GPT, Grok, Sonnet) — each with a different instruction. The Mix on the right aggregates every terminal output into one panel. That's your answer.*
 
 ## What it is
 
@@ -25,6 +27,8 @@ Cells are a discriminated union ([`src/kernel/entities/cell.ts`](src/kernel/enti
 ### The Mix and The Scope
 
 **The Mix** is a right-side panel that aggregates every terminal cell's output — your answer, in real time, regardless of how the upstream graph evolves ([`src/client/ui/components/MixPanel.tsx`](src/client/ui/components/MixPanel.tsx)). Double-click any cell and **The Scope** opens at the bottom: a focused three-column editor with Inputs | Editor | Output ([`src/client/ui/hooks/use-scope-state.ts`](src/client/ui/hooks/use-scope-state.ts)). Two panels, two altitudes — the canvas for shape, The Scope for surgery.
+
+![The Scope opened on an AI cell — Inputs, Editor, Output side by side](docs/patchbay-scope.png)
 
 ### Multi-provider AI behind one route
 

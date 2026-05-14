@@ -1,8 +1,9 @@
 // AUTO-GENERATED. Source: scripts/build-patchbay-demos.py
-// Two demo workspaces seeded onto every Vercel cold-start instance.
+// Three demo workspaces seeded onto every Vercel cold-start instance.
 //   [0] Active landing: "Should AI agents write our test suites?"
-//   [1] Sibling shown in sidepanel: "Risk gate for an infra change"
-//       — the only demo that exercises all three primitives (Source, AI, Code)
+//   [1] Sibling: "Risk gate for an infra change" (Source + AI + Code)
+//   [2] Sibling: "Composable IDE for reading-learning" (collection
+//       schema mode + mermaid inline render in the terminal cell)
 //
 export const DEMO_WORKSPACES = [
   {
@@ -12,7 +13,7 @@ export const DEMO_WORKSPACES = [
     "nodes": [],
     "connections": [
       {
-        "id": "a_conn_1",
+        "id": "a_c1",
         "sourceId": "cell_src_rfc",
         "targetId": "cell_ai_1",
         "label": "source",
@@ -20,7 +21,7 @@ export const DEMO_WORKSPACES = [
         "gate": "open"
       },
       {
-        "id": "a_conn_2",
+        "id": "a_c2",
         "sourceId": "cell_src_rfc",
         "targetId": "cell_ai_2",
         "label": "source",
@@ -28,7 +29,7 @@ export const DEMO_WORKSPACES = [
         "gate": "open"
       },
       {
-        "id": "a_conn_3",
+        "id": "a_c3",
         "sourceId": "cell_src_rfc",
         "targetId": "cell_ai_3",
         "label": "source",
@@ -36,7 +37,7 @@ export const DEMO_WORKSPACES = [
         "gate": "open"
       },
       {
-        "id": "a_conn_4",
+        "id": "a_c4",
         "sourceId": "cell_src_rfc",
         "targetId": "cell_ai_4",
         "label": "source",
@@ -473,12 +474,317 @@ export const DEMO_WORKSPACES = [
       }
     ],
     "executionMode": "manual"
+  },
+  {
+    "version": 12,
+    "id": "patchbay_demo_learning_ide",
+    "name": "Demo \u00b7 Composable IDE for reading-learning",
+    "nodes": [],
+    "connections": [
+      {
+        "id": "c_c1",
+        "sourceId": "cell_src_passage",
+        "targetId": "cell_ai_prequestions",
+        "label": "source",
+        "createdAt": 1778712000000,
+        "gate": "open"
+      },
+      {
+        "id": "c_c2",
+        "sourceId": "cell_src_passage",
+        "targetId": "cell_ai_chunks",
+        "label": "source",
+        "createdAt": 1778712000000,
+        "gate": "open"
+      },
+      {
+        "id": "c_c3",
+        "sourceId": "cell_src_passage",
+        "targetId": "cell_ai_cards",
+        "label": "source",
+        "createdAt": 1778712000000,
+        "gate": "open"
+      },
+      {
+        "id": "c_c4",
+        "sourceId": "cell_src_passage",
+        "targetId": "cell_ai_model",
+        "label": "source",
+        "createdAt": 1778712000000,
+        "gate": "open"
+      },
+      {
+        "id": "c_c5",
+        "sourceId": "cell_ai_prequestions",
+        "targetId": "cell_code_schedule",
+        "label": "PreQuestions",
+        "createdAt": 1778712000000,
+        "gate": "open"
+      },
+      {
+        "id": "c_c6",
+        "sourceId": "cell_ai_chunks",
+        "targetId": "cell_code_schedule",
+        "label": "Chunks",
+        "createdAt": 1778712000000,
+        "gate": "open"
+      },
+      {
+        "id": "c_c7",
+        "sourceId": "cell_ai_cards",
+        "targetId": "cell_code_schedule",
+        "label": "Cards",
+        "createdAt": 1778712000000,
+        "gate": "open"
+      },
+      {
+        "id": "c_c8",
+        "sourceId": "cell_code_schedule",
+        "targetId": "cell_ai_plan",
+        "label": "Schedule (SM-2 with difficulty scaling)",
+        "createdAt": 1778712000000,
+        "gate": "open"
+      },
+      {
+        "id": "c_c9",
+        "sourceId": "cell_ai_model",
+        "targetId": "cell_ai_plan",
+        "label": "Mental model",
+        "createdAt": 1778712000000,
+        "gate": "open"
+      },
+      {
+        "id": "c_c10",
+        "sourceId": "cell_src_passage",
+        "targetId": "cell_ai_plan",
+        "label": "Passage: The forgetting-learning paradox",
+        "createdAt": 1778712000000,
+        "gate": "open"
+      }
+    ],
+    "viewport": {
+      "x": -60,
+      "y": -10,
+      "zoom": 0.46
+    },
+    "cells": [
+      {
+        "id": "cell_src_passage",
+        "type": "source",
+        "title": "Passage: The forgetting-learning paradox",
+        "content": "## The forgetting-learning paradox\n\nWhat feels like effective studying \u2014 re-reading highlights, repeating notes back, walking through a worked example for the third time \u2014 is in many cases the *opposite* of effective. Bjork (1994) called these *illusions of competence*: the fluency of re-encountering material reads as understanding, but it produces only a thin and short-lived trace.\n\nThe conditions that produce durable learning often share three uncomfortable features:\n\n**1. Retrieval, not re-exposure.** When you pull information out of memory you also re-encode it, deepening the trace and strengthening retrieval paths for next time. Re-reading a passage activates recognition (cheap and fast); attempting to *recall* the passage from memory before re-reading exercises the much costlier generation pathway. The lab evidence is consistent and large: a 10-minute session split 5/5 between reading and self-testing outperforms a 10-minute re-reading session by roughly 50% on a one-week delayed test.\n\n**2. Spacing, not massing.** A single 60-minute block produces less long-term retention than six 10-minute sessions spread over three weeks. The neural correlate is plausibly the engagement of reconsolidation: each spaced retrieval is a small forgetting event followed by a re-encoding, and the re-encoding *under retrieval conditions* is the durable one. Forgetting, in this view, is not the enemy of learning \u2014 it is the *precondition* for it.\n\n**3. Variation, not blocked practice.** Practicing a single technique in a block (\"do 20 of these problems in a row\") produces fast within-session gains and poor between-session retention. Interleaving with related techniques produces slower within-session gains and substantially better retention. The mechanism is thought to be schema discrimination: blocked practice lets you skip the work of figuring out *which* technique applies, which is precisely the work that matters at test time.\n\nThe practical implication for a reader trying to retain a difficult text is not \"read it more carefully.\" It is closer to: read once; close the book; force yourself to summarize in your own words; come back tomorrow and try again from memory; interleave with adjacent material; and accept that the moments of feeling stuck and forgetting are doing more work for you than the moments of feeling fluent.\n",
+        "position": {
+          "x": 540,
+          "y": 40
+        },
+        "createdAt": 1778712000000,
+        "updatedAt": 1778712000000,
+        "output": {
+          "status": "success",
+          "text": "## The forgetting-learning paradox\n\nWhat feels like effective studying \u2014 re-reading highlights, repeating notes back, walking through a worked example for the third time \u2014 is in many cases the *opposite* of effective. Bjork (1994) called these *illusions of competence*: the fluency of re-encountering material reads as understanding, but it produces only a thin and short-lived trace.\n\nThe conditions that produce durable learning often share three uncomfortable features:\n\n**1. Retrieval, not re-exposure.** When you pull information out of memory you also re-encode it, deepening the trace and strengthening retrieval paths for next time. Re-reading a passage activates recognition (cheap and fast); attempting to *recall* the passage from memory before re-reading exercises the much costlier generation pathway. The lab evidence is consistent and large: a 10-minute session split 5/5 between reading and self-testing outperforms a 10-minute re-reading session by roughly 50% on a one-week delayed test.\n\n**2. Spacing, not massing.** A single 60-minute block produces less long-term retention than six 10-minute sessions spread over three weeks. The neural correlate is plausibly the engagement of reconsolidation: each spaced retrieval is a small forgetting event followed by a re-encoding, and the re-encoding *under retrieval conditions* is the durable one. Forgetting, in this view, is not the enemy of learning \u2014 it is the *precondition* for it.\n\n**3. Variation, not blocked practice.** Practicing a single technique in a block (\"do 20 of these problems in a row\") produces fast within-session gains and poor between-session retention. Interleaving with related techniques produces slower within-session gains and substantially better retention. The mechanism is thought to be schema discrimination: blocked practice lets you skip the work of figuring out *which* technique applies, which is precisely the work that matters at test time.\n\nThe practical implication for a reader trying to retain a difficult text is not \"read it more carefully.\" It is closer to: read once; close the book; force yourself to summarize in your own words; come back tomorrow and try again from memory; interleave with adjacent material; and accept that the moments of feeling stuck and forgetting are doing more work for you than the moments of feeling fluent.\n",
+          "durationMs": 0
+        },
+        "dimensions": {
+          "width": 460,
+          "height": 400
+        }
+      },
+      {
+        "id": "cell_ai_prequestions",
+        "type": "ai",
+        "title": "Pre-questions",
+        "instruction": "Generate 3-5 questions a learner should hold in mind BEFORE reading this passage. For each, briefly explain why holding the question matters for active reading.",
+        "provider": "anthropic",
+        "model": "claude-sonnet-4-20250514",
+        "outputMode": "structured",
+        "schemaMode": "collection",
+        "schema": [
+          {
+            "name": "question",
+            "type": "string"
+          },
+          {
+            "name": "why_it_matters",
+            "type": "string"
+          }
+        ],
+        "position": {
+          "x": 60,
+          "y": 520
+        },
+        "createdAt": 1778712000000,
+        "updatedAt": 1778712000000,
+        "output": {
+          "status": "success",
+          "text": "[{\"question\": \"Why does re-reading feel like learning when it isn't?\", \"why_it_matters\": \"If you can articulate the mechanism for the illusion, you can recognize it in your own study habits \\u2014 which is the first step to changing them.\"}, {\"question\": \"Under what conditions does forgetting actually help retention?\", \"why_it_matters\": \"The passage's central claim sounds wrong on first hearing. Holding the question primes you to notice the specific mechanism (reconsolidation under retrieval) rather than passively accepting the conclusion.\"}, {\"question\": \"When would blocked practice still be the right call?\", \"why_it_matters\": \"The passage advocates for interleaving but doesn't say it's universally better. Reading with the boundary case in mind prevents over-applying the rule.\"}, {\"question\": \"What does 'desirable difficulty' mean concretely \\u2014 what makes a difficulty desirable vs. just frustrating?\", \"why_it_matters\": \"The phrase is doing a lot of work in this literature. Holding the question forces the passage to earn it.\"}]",
+          "durationMs": 3400
+        },
+        "lastInputHash": "[[\"Passage: The forgetting-learning paradox\",\"## The forgetting-learning paradox\\n\\nWhat feels like effective studying \\u2014 re-reading highlights, repeating notes back, walking through a worked example for the third time \\u2014 is in many cases the *opposite* of effective. Bjork (1994) called these *illusions of competence*: the fluency of re-encountering material reads as understanding, but it produces only a thin and short-lived trace.\\n\\nThe conditions that produce durable learning often share three uncomfortable features:\\n\\n**1. Retrieval, not re-exposure.** When you pull information out of memory you also re-encode it, deepening the trace and strengthening retrieval paths for next time. Re-reading a passage activates recognition (cheap and fast); attempting to *recall* the passage from memory before re-reading exercises the much costlier generation pathway. The lab evidence is consistent and large: a 10-minute session split 5/5 between reading and self-testing outperforms a 10-minute re-reading session by roughly 50% on a one-week delayed test.\\n\\n**2. Spacing, not massing.** A single 60-minute block produces less long-term retention than six 10-minute sessions spread over three weeks. The neural correlate is plausibly the engagement of reconsolidation: each spaced retrieval is a small forgetting event followed by a re-encoding, and the re-encoding *under retrieval conditions* is the durable one. Forgetting, in this view, is not the enemy of learning \\u2014 it is the *precondition* for it.\\n\\n**3. Variation, not blocked practice.** Practicing a single technique in a block (\\\"do 20 of these problems in a row\\\") produces fast within-session gains and poor between-session retention. Interleaving with related techniques produces slower within-session gains and substantially better retention. The mechanism is thought to be schema discrimination: blocked practice lets you skip the work of figuring out *which* technique applies, which is precisely the work that matters at test time.\\n\\nThe practical implication for a reader trying to retain a difficult text is not \\\"read it more carefully.\\\" It is closer to: read once; close the book; force yourself to summarize in your own words; come back tomorrow and try again from memory; interleave with adjacent material; and accept that the moments of feeling stuck and forgetting are doing more work for you than the moments of feeling fluent.\\n\"]]",
+        "dimensions": {
+          "width": 380,
+          "height": 380
+        }
+      },
+      {
+        "id": "cell_ai_chunks",
+        "type": "ai",
+        "title": "Chunks",
+        "instruction": "Break the passage into 3-5 chunks. For each: a chunk title, a one-sentence synthesis, and a difficulty rating (1-5 where 5 is hardest to encode).",
+        "provider": "anthropic",
+        "model": "claude-sonnet-4-20250514",
+        "outputMode": "structured",
+        "schemaMode": "collection",
+        "schema": [
+          {
+            "name": "chunk_title",
+            "type": "string"
+          },
+          {
+            "name": "synthesis",
+            "type": "string"
+          },
+          {
+            "name": "difficulty",
+            "type": "number"
+          }
+        ],
+        "position": {
+          "x": 480,
+          "y": 520
+        },
+        "createdAt": 1778712000000,
+        "updatedAt": 1778712000000,
+        "output": {
+          "status": "success",
+          "text": "[{\"chunk_title\": \"Illusions of competence\", \"synthesis\": \"Fluency from re-encountering material is read as understanding. The reading feels productive precisely when it isn't building durable trace.\", \"difficulty\": 2}, {\"chunk_title\": \"Retrieval > re-exposure\", \"synthesis\": \"Pulling memory out is encoding work, not extraction work. Splitting 10 min into 5 read + 5 self-test beats 10 min re-reading by ~50% on delayed test.\", \"difficulty\": 3}, {\"chunk_title\": \"Spacing > massing\", \"synthesis\": \"Six 10-min sessions across 3 weeks > one 60-min block. Reconsolidation requires the small forgetting event between sessions.\", \"difficulty\": 4}, {\"chunk_title\": \"Variation > blocked practice\", \"synthesis\": \"Interleaved practice is slower within session, better between sessions. Block lets you skip schema discrimination \\u2014 exactly the work that matters at test time.\", \"difficulty\": 5}]",
+          "durationMs": 3900
+        },
+        "lastInputHash": "[[\"Passage: The forgetting-learning paradox\",\"## The forgetting-learning paradox\\n\\nWhat feels like effective studying \\u2014 re-reading highlights, repeating notes back, walking through a worked example for the third time \\u2014 is in many cases the *opposite* of effective. Bjork (1994) called these *illusions of competence*: the fluency of re-encountering material reads as understanding, but it produces only a thin and short-lived trace.\\n\\nThe conditions that produce durable learning often share three uncomfortable features:\\n\\n**1. Retrieval, not re-exposure.** When you pull information out of memory you also re-encode it, deepening the trace and strengthening retrieval paths for next time. Re-reading a passage activates recognition (cheap and fast); attempting to *recall* the passage from memory before re-reading exercises the much costlier generation pathway. The lab evidence is consistent and large: a 10-minute session split 5/5 between reading and self-testing outperforms a 10-minute re-reading session by roughly 50% on a one-week delayed test.\\n\\n**2. Spacing, not massing.** A single 60-minute block produces less long-term retention than six 10-minute sessions spread over three weeks. The neural correlate is plausibly the engagement of reconsolidation: each spaced retrieval is a small forgetting event followed by a re-encoding, and the re-encoding *under retrieval conditions* is the durable one. Forgetting, in this view, is not the enemy of learning \\u2014 it is the *precondition* for it.\\n\\n**3. Variation, not blocked practice.** Practicing a single technique in a block (\\\"do 20 of these problems in a row\\\") produces fast within-session gains and poor between-session retention. Interleaving with related techniques produces slower within-session gains and substantially better retention. The mechanism is thought to be schema discrimination: blocked practice lets you skip the work of figuring out *which* technique applies, which is precisely the work that matters at test time.\\n\\nThe practical implication for a reader trying to retain a difficult text is not \\\"read it more carefully.\\\" It is closer to: read once; close the book; force yourself to summarize in your own words; come back tomorrow and try again from memory; interleave with adjacent material; and accept that the moments of feeling stuck and forgetting are doing more work for you than the moments of feeling fluent.\\n\"]]",
+        "dimensions": {
+          "width": 380,
+          "height": 380
+        }
+      },
+      {
+        "id": "cell_ai_cards",
+        "type": "ai",
+        "title": "Cloze cards",
+        "instruction": "Generate 4-6 cloze-deletion cards from the passage. Each card has a prompt with a ___ blank, the answer, and a reference to which chunk it came from.",
+        "provider": "anthropic",
+        "model": "claude-haiku-4-5-20251001",
+        "outputMode": "structured",
+        "schemaMode": "collection",
+        "schema": [
+          {
+            "name": "prompt",
+            "type": "string"
+          },
+          {
+            "name": "answer",
+            "type": "string"
+          },
+          {
+            "name": "source_chunk",
+            "type": "string"
+          }
+        ],
+        "position": {
+          "x": 900,
+          "y": 520
+        },
+        "createdAt": 1778712000000,
+        "updatedAt": 1778712000000,
+        "output": {
+          "status": "success",
+          "text": "[{\"prompt\": \"Bjork (1994) called the fluency-as-understanding effect ___.\", \"answer\": \"illusions of competence\", \"source_chunk\": \"Illusions of competence\"}, {\"prompt\": \"A 10-min session split 5/5 (read + self-test) outperforms 10 min re-reading by roughly ___ on a one-week delayed test.\", \"answer\": \"50%\", \"source_chunk\": \"Retrieval > re-exposure\"}, {\"prompt\": \"The neural correlate proposed for spacing's effect is ___.\", \"answer\": \"reconsolidation\", \"source_chunk\": \"Spacing > massing\"}, {\"prompt\": \"Blocked practice lets you skip ___, which is the work that matters at test time.\", \"answer\": \"schema discrimination\", \"source_chunk\": \"Variation > blocked practice\"}, {\"prompt\": \"The three uncomfortable features of durable learning are retrieval, spacing, and ___.\", \"answer\": \"variation (interleaving)\", \"source_chunk\": \"passage-wide\"}]",
+          "durationMs": 2800
+        },
+        "lastInputHash": "[[\"Passage: The forgetting-learning paradox\",\"## The forgetting-learning paradox\\n\\nWhat feels like effective studying \\u2014 re-reading highlights, repeating notes back, walking through a worked example for the third time \\u2014 is in many cases the *opposite* of effective. Bjork (1994) called these *illusions of competence*: the fluency of re-encountering material reads as understanding, but it produces only a thin and short-lived trace.\\n\\nThe conditions that produce durable learning often share three uncomfortable features:\\n\\n**1. Retrieval, not re-exposure.** When you pull information out of memory you also re-encode it, deepening the trace and strengthening retrieval paths for next time. Re-reading a passage activates recognition (cheap and fast); attempting to *recall* the passage from memory before re-reading exercises the much costlier generation pathway. The lab evidence is consistent and large: a 10-minute session split 5/5 between reading and self-testing outperforms a 10-minute re-reading session by roughly 50% on a one-week delayed test.\\n\\n**2. Spacing, not massing.** A single 60-minute block produces less long-term retention than six 10-minute sessions spread over three weeks. The neural correlate is plausibly the engagement of reconsolidation: each spaced retrieval is a small forgetting event followed by a re-encoding, and the re-encoding *under retrieval conditions* is the durable one. Forgetting, in this view, is not the enemy of learning \\u2014 it is the *precondition* for it.\\n\\n**3. Variation, not blocked practice.** Practicing a single technique in a block (\\\"do 20 of these problems in a row\\\") produces fast within-session gains and poor between-session retention. Interleaving with related techniques produces slower within-session gains and substantially better retention. The mechanism is thought to be schema discrimination: blocked practice lets you skip the work of figuring out *which* technique applies, which is precisely the work that matters at test time.\\n\\nThe practical implication for a reader trying to retain a difficult text is not \\\"read it more carefully.\\\" It is closer to: read once; close the book; force yourself to summarize in your own words; come back tomorrow and try again from memory; interleave with adjacent material; and accept that the moments of feeling stuck and forgetting are doing more work for you than the moments of feeling fluent.\\n\"]]",
+        "dimensions": {
+          "width": 380,
+          "height": 380
+        }
+      },
+      {
+        "id": "cell_ai_model",
+        "type": "ai",
+        "title": "Mental model",
+        "instruction": "What is the deeper analogy or schema this passage is building? Find one that's more accurate than the obvious (e.g., 'memory like a muscle'). Markdown, 100-200 words.",
+        "provider": "xai",
+        "model": "grok-4",
+        "outputMode": "text",
+        "position": {
+          "x": 1320,
+          "y": 520
+        },
+        "createdAt": 1778712000000,
+        "updatedAt": 1778712000000,
+        "output": {
+          "status": "success",
+          "text": "**The memory-as-muscle analogy is wrong in the part that matters most.**\n\nMemory doesn't get stronger from *exercise* in the way muscle does \u2014 it gets stronger from *recovery between exercises*. The lifting analog would be: each spaced retrieval is a rep; the forgetting interval between reps is the recovery period during which the encoding consolidates. Re-reading without retrieval is not light cardio between heavy sets; it's spending the rest period also doing reps \u2014 which is what blocks the consolidation you came for.\n\nA cleaner analogy: **memory behaves like a path through a forest.** Re-reading is walking the path while looking at a map (the map keeps the path visible but doesn't make the path itself any more worn). Retrieval is walking the path *without* the map and stumbling at the unmarked branches \u2014 that's where the path gets worn in. The discomfort of stumbling *is* the path-wearing.\n\nIf you find yourself reaching for the highlighter, ask: am I making the path more visible to my future self, or am I making it more worn? Highlighting helps the first; only retrieval helps the second.",
+          "durationMs": 5200
+        },
+        "lastInputHash": "[[\"Passage: The forgetting-learning paradox\",\"## The forgetting-learning paradox\\n\\nWhat feels like effective studying \\u2014 re-reading highlights, repeating notes back, walking through a worked example for the third time \\u2014 is in many cases the *opposite* of effective. Bjork (1994) called these *illusions of competence*: the fluency of re-encountering material reads as understanding, but it produces only a thin and short-lived trace.\\n\\nThe conditions that produce durable learning often share three uncomfortable features:\\n\\n**1. Retrieval, not re-exposure.** When you pull information out of memory you also re-encode it, deepening the trace and strengthening retrieval paths for next time. Re-reading a passage activates recognition (cheap and fast); attempting to *recall* the passage from memory before re-reading exercises the much costlier generation pathway. The lab evidence is consistent and large: a 10-minute session split 5/5 between reading and self-testing outperforms a 10-minute re-reading session by roughly 50% on a one-week delayed test.\\n\\n**2. Spacing, not massing.** A single 60-minute block produces less long-term retention than six 10-minute sessions spread over three weeks. The neural correlate is plausibly the engagement of reconsolidation: each spaced retrieval is a small forgetting event followed by a re-encoding, and the re-encoding *under retrieval conditions* is the durable one. Forgetting, in this view, is not the enemy of learning \\u2014 it is the *precondition* for it.\\n\\n**3. Variation, not blocked practice.** Practicing a single technique in a block (\\\"do 20 of these problems in a row\\\") produces fast within-session gains and poor between-session retention. Interleaving with related techniques produces slower within-session gains and substantially better retention. The mechanism is thought to be schema discrimination: blocked practice lets you skip the work of figuring out *which* technique applies, which is precisely the work that matters at test time.\\n\\nThe practical implication for a reader trying to retain a difficult text is not \\\"read it more carefully.\\\" It is closer to: read once; close the book; force yourself to summarize in your own words; come back tomorrow and try again from memory; interleave with adjacent material; and accept that the moments of feeling stuck and forgetting are doing more work for you than the moments of feeling fluent.\\n\"]]",
+        "dimensions": {
+          "width": 380,
+          "height": 380
+        }
+      },
+      {
+        "id": "cell_code_schedule",
+        "type": "code",
+        "title": "Schedule (SM-2 with difficulty scaling)",
+        "code": "// Compose an SM-2-style spaced retrieval schedule from the four AI inputs.\n// AI cells *estimate* learning content; this cell *decides* the schedule.\n//\n// Strategy:\n//   1. Compute weighted-average difficulty across chunks.\n//   2. SM-2 baseline intervals are [1, 2, 4, 8, 16] days. We compress them\n//      multiplicatively when content is easy and stretch them when hard.\n//   3. Each session's content interleaves chunks by ascending difficulty\n//      (cognitive-load-managed order, per Sweller).\n\nconst chunks  = JSON.parse(input.Chunks);\nconst cards   = JSON.parse(input.Cards);\nconst prequestions = JSON.parse(input.PreQuestions);\n\nconst avgDifficulty =\n  chunks.reduce((sum, c) => sum + c.difficulty, 0) / chunks.length;\n\n// Compress (easy content) or stretch (hard content) the SM-2 baseline.\n// Scale ranges roughly 0.7 (very easy) to 1.4 (very hard).\nconst scale = 0.7 + ((avgDifficulty - 1) / 4) * 0.7;\nconst baseline = [1, 2, 4, 8, 16];\nconst intervals = baseline.map(d => Math.max(1, Math.round(d * scale)));\n\n// Interleave reading order by ascending difficulty (within-session schema-load mgmt).\nconst readingOrder = [...chunks]\n  .sort((a, b) => a.difficulty - b.difficulty)\n  .map(c => c.chunk_title);\n\nconst schedule = [\n  { day: 0,           activity: \"First read (interleaved order) + cloze pass\",  minutes: 15, type: \"new\" },\n  { day: intervals[0], activity: \"Free-recall summary (no notes)\",                minutes: 5,  type: \"retrieval\" },\n  { day: intervals[1], activity: \"Cloze review (mixed)\",                          minutes: 5,  type: \"retrieval\" },\n  { day: intervals[2], activity: \"Cloze review (hardest cards first)\",            minutes: 5,  type: \"retrieval\" },\n  { day: intervals[3], activity: \"Cloze review (interleaved with adjacent topic)\", minutes: 5, type: \"retrieval\" },\n  { day: intervals[4], activity: \"Final retrieval: write a 200-word recap\",       minutes: 8,  type: \"test\" },\n];\n\nconst totalMinutes = schedule.reduce((s, x) => s + x.minutes, 0);\n\nreturn JSON.stringify({\n  avg_difficulty: Number(avgDifficulty.toFixed(2)),\n  difficulty_scale_applied: Number(scale.toFixed(2)),\n  intervals_days: intervals,\n  reading_order: readingOrder,\n  total_minutes: totalMinutes,\n  total_span_days: intervals[intervals.length - 1],\n  card_count: cards.length,\n  prequestion_count: prequestions.length,\n  schedule,\n}, null, 2);\n",
+        "timeoutMs": 5000,
+        "position": {
+          "x": 480,
+          "y": 980
+        },
+        "createdAt": 1778712000000,
+        "updatedAt": 1778712000000,
+        "output": {
+          "status": "success",
+          "text": "{\n  \"avg_difficulty\": 3.5,\n  \"difficulty_scale_applied\": 1.14,\n  \"intervals_days\": [\n    1,\n    2,\n    5,\n    9,\n    18\n  ],\n  \"reading_order\": [\n    \"Illusions of competence\",\n    \"Retrieval > re-exposure\",\n    \"Spacing > massing\",\n    \"Variation > blocked practice\"\n  ],\n  \"total_minutes\": 43,\n  \"total_span_days\": 18,\n  \"card_count\": 5,\n  \"prequestion_count\": 4,\n  \"schedule\": [\n    {\n      \"day\": 0,\n      \"activity\": \"First read (interleaved order) + cloze pass\",\n      \"minutes\": 15,\n      \"type\": \"new\"\n    },\n    {\n      \"day\": 1,\n      \"activity\": \"Free-recall summary (no notes)\",\n      \"minutes\": 5,\n      \"type\": \"retrieval\"\n    },\n    {\n      \"day\": 2,\n      \"activity\": \"Cloze review (mixed)\",\n      \"minutes\": 5,\n      \"type\": \"retrieval\"\n    },\n    {\n      \"day\": 5,\n      \"activity\": \"Cloze review (hardest cards first)\",\n      \"minutes\": 5,\n      \"type\": \"retrieval\"\n    },\n    {\n      \"day\": 9,\n      \"activity\": \"Cloze review (interleaved with adjacent topic)\",\n      \"minutes\": 5,\n      \"type\": \"retrieval\"\n    },\n    {\n      \"day\": 18,\n      \"activity\": \"Final retrieval: write a 200-word recap\",\n      \"minutes\": 8,\n      \"type\": \"test\"\n    }\n  ]\n}",
+          "durationMs": 6
+        },
+        "lastInputHash": "[[\"PreQuestions\",\"[{\\\"question\\\": \\\"Why does re-reading feel like learning when it isn't?\\\", \\\"why_it_matters\\\": \\\"If you can articulate the mechanism for the illusion, you can recognize it in your own study habits \\\\u2014 which is the first step to changing them.\\\"}, {\\\"question\\\": \\\"Under what conditions does forgetting actually help retention?\\\", \\\"why_it_matters\\\": \\\"The passage's central claim sounds wrong on first hearing. Holding the question primes you to notice the specific mechanism (reconsolidation under retrieval) rather than passively accepting the conclusion.\\\"}, {\\\"question\\\": \\\"When would blocked practice still be the right call?\\\", \\\"why_it_matters\\\": \\\"The passage advocates for interleaving but doesn't say it's universally better. Reading with the boundary case in mind prevents over-applying the rule.\\\"}, {\\\"question\\\": \\\"What does 'desirable difficulty' mean concretely \\\\u2014 what makes a difficulty desirable vs. just frustrating?\\\", \\\"why_it_matters\\\": \\\"The phrase is doing a lot of work in this literature. Holding the question forces the passage to earn it.\\\"}]\"],[\"Chunks\",\"[{\\\"chunk_title\\\": \\\"Illusions of competence\\\", \\\"synthesis\\\": \\\"Fluency from re-encountering material is read as understanding. The reading feels productive precisely when it isn't building durable trace.\\\", \\\"difficulty\\\": 2}, {\\\"chunk_title\\\": \\\"Retrieval > re-exposure\\\", \\\"synthesis\\\": \\\"Pulling memory out is encoding work, not extraction work. Splitting 10 min into 5 read + 5 self-test beats 10 min re-reading by ~50% on delayed test.\\\", \\\"difficulty\\\": 3}, {\\\"chunk_title\\\": \\\"Spacing > massing\\\", \\\"synthesis\\\": \\\"Six 10-min sessions across 3 weeks > one 60-min block. Reconsolidation requires the small forgetting event between sessions.\\\", \\\"difficulty\\\": 4}, {\\\"chunk_title\\\": \\\"Variation > blocked practice\\\", \\\"synthesis\\\": \\\"Interleaved practice is slower within session, better between sessions. Block lets you skip schema discrimination \\\\u2014 exactly the work that matters at test time.\\\", \\\"difficulty\\\": 5}]\"],[\"Cards\",\"[{\\\"prompt\\\": \\\"Bjork (1994) called the fluency-as-understanding effect ___.\\\", \\\"answer\\\": \\\"illusions of competence\\\", \\\"source_chunk\\\": \\\"Illusions of competence\\\"}, {\\\"prompt\\\": \\\"A 10-min session split 5/5 (read + self-test) outperforms 10 min re-reading by roughly ___ on a one-week delayed test.\\\", \\\"answer\\\": \\\"50%\\\", \\\"source_chunk\\\": \\\"Retrieval > re-exposure\\\"}, {\\\"prompt\\\": \\\"The neural correlate proposed for spacing's effect is ___.\\\", \\\"answer\\\": \\\"reconsolidation\\\", \\\"source_chunk\\\": \\\"Spacing > massing\\\"}, {\\\"prompt\\\": \\\"Blocked practice lets you skip ___, which is the work that matters at test time.\\\", \\\"answer\\\": \\\"schema discrimination\\\", \\\"source_chunk\\\": \\\"Variation > blocked practice\\\"}, {\\\"prompt\\\": \\\"The three uncomfortable features of durable learning are retrieval, spacing, and ___.\\\", \\\"answer\\\": \\\"variation (interleaving)\\\", \\\"source_chunk\\\": \\\"passage-wide\\\"}]\"]]",
+        "dimensions": {
+          "width": 540,
+          "height": 340
+        }
+      },
+      {
+        "id": "cell_ai_plan",
+        "type": "ai",
+        "title": "Learning plan",
+        "instruction": "Write a complete learning plan markdown for the reader. Include the pre-questions, ordered chunks, cloze cards table, mental model, and the Code-generated schedule rendered as an inline mermaid graph. End with non-obvious advice about following the schedule.",
+        "provider": "anthropic",
+        "model": "claude-sonnet-4-20250514",
+        "outputMode": "text",
+        "position": {
+          "x": 1080,
+          "y": 980
+        },
+        "createdAt": 1778712000000,
+        "updatedAt": 1778712000000,
+        "output": {
+          "status": "success",
+          "text": "# Learning plan \u2014 *The forgetting-learning paradox*\n\nThe passage argues something that *feels* wrong: forgetting helps learning. The plan below applies the techniques it describes \u2014 retrieval, spacing, interleaving \u2014 to the passage itself. **Total: 43 minutes, spread over 18 days.**\n\n## Step 1 \u2014 Read with these questions in your head\n\nHold these while you read. Don't answer them yet \u2014 just notice when the text starts to answer them.\n\n1. **Why does re-reading feel like learning when it isn't?**\n2. **Under what conditions does forgetting actually help retention?**\n3. **When would blocked practice still be the right call?**\n4. **What does \"desirable difficulty\" mean concretely \u2014 what makes a difficulty *desirable* vs. just frustrating?**\n\n## Step 2 \u2014 Three chunks, reading order matters\n\nRead in this order (easiest \u2192 hardest, so cognitive load builds gradually):\n\n| Order | Chunk | Synthesis | Difficulty |\n|---|---|---|---|\n| 1 | Illusions of competence | Fluency from re-encountering material reads as understanding. Feels productive precisely when it isn't. | 2/5 |\n| 2 | Retrieval > re-exposure | Pulling memory out is encoding work. 5/5 split (read + test) beats 10 min re-reading by ~50%. | 3/5 |\n| 3 | Spacing > massing | Six short sessions > one long block. Reconsolidation requires forgetting between sessions. | 4/5 |\n| 4 | Variation > blocked practice | Interleaving is slower in-session, better between-sessions. The schema-discrimination work is the point. | 5/5 |\n\n## Step 3 \u2014 Cloze cards (5 cards)\n\n| # | Prompt | Answer |\n|---|---|---|\n| 1 | Bjork (1994) called the fluency-as-understanding effect ___. | illusions of competence |\n| 2 | A 10-min session split 5/5 outperforms 10 min re-reading by roughly ___ on a delayed test. | 50% |\n| 3 | The neural correlate proposed for spacing's effect is ___. | reconsolidation |\n| 4 | Blocked practice lets you skip ___, which is the work that matters at test time. | schema discrimination |\n| 5 | The three uncomfortable features of durable learning are retrieval, spacing, and ___. | variation (interleaving) |\n\n## Step 4 \u2014 The mental model\n\nMemory doesn't get stronger from exercise the way muscle does. It gets stronger from **recovery between exercises**. Think of it as a path through a forest: re-reading is walking with a map (path stays visible; doesn't get worn); retrieval is walking without the map and stumbling at the unmarked branches \u2014 and the stumbling is what wears the path in. If you find yourself reaching for the highlighter, ask: am I making the path more visible, or more worn? Only the second helps.\n\n## Step 5 \u2014 The schedule (algorithmically generated)\n\nThe schedule below is an SM-2-style sequence with intervals stretched 1.14\u00d7 because the passage scored 3.5/5 average difficulty. Total active time is **43 minutes spread over 18 days** \u2014 most of which is the *gap* between sessions doing the work.\n\n```mermaid\ngraph LR\n    D0[\"Day 0<br/>First read + cloze<br/>15 min\"] -->|1 day| D1[\"Day 1<br/>Free recall<br/>5 min\"]\n    D1 -->|1 day| D2[\"Day 2<br/>Cloze review<br/>5 min\"]\n    D2 -->|3 days| D5[\"Day 5<br/>Cloze (hardest first)<br/>5 min\"]\n    D5 -->|4 days| D9[\"Day 9<br/>Cloze (interleaved)<br/>5 min\"]\n    D9 -->|9 days| D18[\"Day 18<br/>200-word recap<br/>8 min\"]\n\n    classDef new fill:#fef3c7,stroke:#d97706,color:#78350f;\n    classDef review fill:#dbeafe,stroke:#2563eb,color:#1e3a8a;\n    classDef test fill:#d1fae5,stroke:#059669,color:#064e3b;\n    class D0 new\n    class D1,D2,D5,D9 review\n    class D18 test\n```\n\n### Two non-obvious things about this schedule\n\n1. **The first review is at 24 hours, not 1 hour.** Counterintuitive, but spacing experiments consistently show short first-intervals don't add durability \u2014 they just feel productive. Resist the urge to compress.\n2. **Day 18's retrieval is the longest.** It's the actual test. If you can produce the three claims and one analogy without looking, the encoding stuck. If not, the schedule has already told you exactly which card to revisit \u2014 that's the feedback loop, not the failure.\n\n### If you skip a session\n\nPush the next one *back*, don't compress them. The spacing is the mechanism, not the inconvenience.",
+          "durationMs": 8400
+        },
+        "lastInputHash": "[[\"Schedule (SM-2 with difficulty scaling)\",\"{\\n  \\\"avg_difficulty\\\": 3.5,\\n  \\\"difficulty_scale_applied\\\": 1.14,\\n  \\\"intervals_days\\\": [\\n    1,\\n    2,\\n    5,\\n    9,\\n    18\\n  ],\\n  \\\"reading_order\\\": [\\n    \\\"Illusions of competence\\\",\\n    \\\"Retrieval > re-exposure\\\",\\n    \\\"Spacing > massing\\\",\\n    \\\"Variation > blocked practice\\\"\\n  ],\\n  \\\"total_minutes\\\": 43,\\n  \\\"total_span_days\\\": 18,\\n  \\\"card_count\\\": 5,\\n  \\\"prequestion_count\\\": 4,\\n  \\\"schedule\\\": [\\n    {\\n      \\\"day\\\": 0,\\n      \\\"activity\\\": \\\"First read (interleaved order) + cloze pass\\\",\\n      \\\"minutes\\\": 15,\\n      \\\"type\\\": \\\"new\\\"\\n    },\\n    {\\n      \\\"day\\\": 1,\\n      \\\"activity\\\": \\\"Free-recall summary (no notes)\\\",\\n      \\\"minutes\\\": 5,\\n      \\\"type\\\": \\\"retrieval\\\"\\n    },\\n    {\\n      \\\"day\\\": 2,\\n      \\\"activity\\\": \\\"Cloze review (mixed)\\\",\\n      \\\"minutes\\\": 5,\\n      \\\"type\\\": \\\"retrieval\\\"\\n    },\\n    {\\n      \\\"day\\\": 5,\\n      \\\"activity\\\": \\\"Cloze review (hardest cards first)\\\",\\n      \\\"minutes\\\": 5,\\n      \\\"type\\\": \\\"retrieval\\\"\\n    },\\n    {\\n      \\\"day\\\": 9,\\n      \\\"activity\\\": \\\"Cloze review (interleaved with adjacent topic)\\\",\\n      \\\"minutes\\\": 5,\\n      \\\"type\\\": \\\"retrieval\\\"\\n    },\\n    {\\n      \\\"day\\\": 18,\\n      \\\"activity\\\": \\\"Final retrieval: write a 200-word recap\\\",\\n      \\\"minutes\\\": 8,\\n      \\\"type\\\": \\\"test\\\"\\n    }\\n  ]\\n}\"],[\"Mental model\",\"**The memory-as-muscle analogy is wrong in the part that matters most.**\\n\\nMemory doesn't get stronger from *exercise* in the way muscle does \\u2014 it gets stronger from *recovery between exercises*. The lifting analog would be: each spaced retrieval is a rep; the forgetting interval between reps is the recovery period during which the encoding consolidates. Re-reading without retrieval is not light cardio between heavy sets; it's spending the rest period also doing reps \\u2014 which is what blocks the consolidation you came for.\\n\\nA cleaner analogy: **memory behaves like a path through a forest.** Re-reading is walking the path while looking at a map (the map keeps the path visible but doesn't make the path itself any more worn). Retrieval is walking the path *without* the map and stumbling at the unmarked branches \\u2014 that's where the path gets worn in. The discomfort of stumbling *is* the path-wearing.\\n\\nIf you find yourself reaching for the highlighter, ask: am I making the path more visible to my future self, or am I making it more worn? Highlighting helps the first; only retrieval helps the second.\"],[\"Passage: The forgetting-learning paradox\",\"## The forgetting-learning paradox\\n\\nWhat feels like effective studying \\u2014 re-reading highlights, repeating notes back, walking through a worked example for the third time \\u2014 is in many cases the *opposite* of effective. Bjork (1994) called these *illusions of competence*: the fluency of re-encountering material reads as understanding, but it produces only a thin and short-lived trace.\\n\\nThe conditions that produce durable learning often share three uncomfortable features:\\n\\n**1. Retrieval, not re-exposure.** When you pull information out of memory you also re-encode it, deepening the trace and strengthening retrieval paths for next time. Re-reading a passage activates recognition (cheap and fast); attempting to *recall* the passage from memory before re-reading exercises the much costlier generation pathway. The lab evidence is consistent and large: a 10-minute session split 5/5 between reading and self-testing outperforms a 10-minute re-reading session by roughly 50% on a one-week delayed test.\\n\\n**2. Spacing, not massing.** A single 60-minute block produces less long-term retention than six 10-minute sessions spread over three weeks. The neural correlate is plausibly the engagement of reconsolidation: each spaced retrieval is a small forgetting event followed by a re-encoding, and the re-encoding *under retrieval conditions* is the durable one. Forgetting, in this view, is not the enemy of learning \\u2014 it is the *precondition* for it.\\n\\n**3. Variation, not blocked practice.** Practicing a single technique in a block (\\\"do 20 of these problems in a row\\\") produces fast within-session gains and poor between-session retention. Interleaving with related techniques produces slower within-session gains and substantially better retention. The mechanism is thought to be schema discrimination: blocked practice lets you skip the work of figuring out *which* technique applies, which is precisely the work that matters at test time.\\n\\nThe practical implication for a reader trying to retain a difficult text is not \\\"read it more carefully.\\\" It is closer to: read once; close the book; force yourself to summarize in your own words; come back tomorrow and try again from memory; interleave with adjacent material; and accept that the moments of feeling stuck and forgetting are doing more work for you than the moments of feeling fluent.\\n\"]]",
+        "dimensions": {
+          "width": 580,
+          "height": 520
+        }
+      }
+    ],
+    "executionMode": "manual"
   }
 ] as const
 
-// Back-compat shim — hardening checks that pre-date the multi-workspace seed
-// import DEMO_WORKSPACE (singular). Keep them working; new code should use
-// DEMO_WORKSPACES and isDemoWorkspaceId() below.
+// Back-compat shim — hardening that predates the multi-workspace seed
+// imports DEMO_WORKSPACE (singular). Keep it pointing at the first ws.
 export const DEMO_WORKSPACE = DEMO_WORKSPACES[0]
 
 const DEMO_IDS: ReadonlySet<string> = new Set(DEMO_WORKSPACES.map((w) => w.id))
